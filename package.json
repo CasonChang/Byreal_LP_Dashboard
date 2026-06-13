@@ -1,0 +1,25 @@
+{
+  "name": "byreal-lp-dashboard",
+  "version": "1.0.0",
+  "description": "Byreal Solana LP 流動性池績效追蹤儀表板 + Telegram 推播",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "collect": "tsx src/collect.ts",
+    "daily-report": "tsx src/daily-report.ts",
+    "collect:dry": "DRY_RUN=true tsx src/collect.ts",
+    "report:dry": "DRY_RUN=true tsx src/daily-report.ts",
+    "mock": "tsx src/mock.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^20.14.0"
+  }
+}

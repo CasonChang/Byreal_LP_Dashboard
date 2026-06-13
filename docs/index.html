@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Byreal LP 績效儀表板</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🌊</span>
+      <div>
+        <h1>Byreal LP 績效儀表板</h1>
+        <p class="sub" id="wallet">—</p>
+      </div>
+    </div>
+    <div class="updated">
+      <span id="updatedAt">載入中…</span>
+      <button id="refreshBtn" title="重新整理">⟳</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <section class="cards" id="summaryCards"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>權益走勢</h2>
+        <div class="tabs" id="chartTabs">
+          <button data-metric="liquidityUsd" class="active">總倉位</button>
+          <button data-metric="earnedUsd">累計手續費</button>
+          <button data-metric="pnlUsd">持倉損益</button>
+          <button data-metric="weightedApr">加權 APR</button>
+        </div>
+      </div>
+      <canvas id="equityChart" height="96"></canvas>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>目前部位</h2></div>
+      <div id="positions" class="positions"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>近期動作紀錄</h2></div>
+      <div id="events" class="events"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>資料每小時更新一次・唯讀查詢（不涉及任何錢包授權）</span>
+    <span>資料來源：Byreal API</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
