@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '0 * * * *' # 每小時整點 (UTC)
   workflow_dispatch: # 可手動觸發
+  push: # 程式碼變更時重新收集一次（不含資料快照本身，避免迴圈）
+    branches:
+      - main
+      - claude/sharp-hopper-75u1v0
+    paths:
+      - 'src/**'
+      - '.github/workflows/collect.yml'
 
 concurrency:
   group: byreal-data
