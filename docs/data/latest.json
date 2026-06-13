@@ -1,17 +1,17 @@
 {
-  "capturedAt": "2026-06-13T18:35:05.977Z",
+  "capturedAt": "2026-06-13T18:36:14.240Z",
   "wallets": [
     "FPa1NnUpG89LpHLnKAPrNrxksVZWrjcpNAqnXiwpoqYn"
   ],
   "totals": {
-    "liquidityUsd": 11111.792481850736,
-    "earnedUsd": 184.21421260753368,
-    "bonusUsd": 0.3301784487021858,
-    "pnlUsd": -20.021906414478416,
+    "liquidityUsd": 11112.958184034676,
+    "earnedUsd": 184.22208474379457,
+    "bonusUsd": 0.33017859876218586,
+    "pnlUsd": -18.848332094276312,
     "positionCount": 4,
     "activeCount": 4,
     "inRangeCount": 4,
-    "weightedApr": 68.67778154140024
+    "weightedApr": 68.66832944462628
   },
   "positions": [
     {
@@ -38,11 +38,11 @@
       "earnedPct": 1.4079502000000002,
       "pnlUsd": 132.58148194704987,
       "pnlPct": 3.2024210999999996,
-      "apr": 14.2243746,
+      "apr": 14.224450999999998,
       "bonusUsd": 0.024870815074920925,
-      "poolTvlUsd": 371942.0489006864,
+      "poolTvlUsd": 371923.4282114503,
       "poolVolume24hUsd": 72383.1004564007,
-      "poolFeeApr": 14.2243746
+      "poolFeeApr": 14.224450999999998
     },
     {
       "positionAddress": "G6fzGAjJDegufiiyzHv4nMhqBC6jBGbUijBrXD61veLF",
@@ -68,11 +68,11 @@
       "earnedPct": 1.833237,
       "pnlUsd": -41.91949037177298,
       "pnlPct": -1.3594719,
-      "apr": 18.157748100000003,
-      "bonusUsd": 0.013919297865,
-      "poolTvlUsd": 501689.95166786126,
+      "apr": 18.1573308,
+      "bonusUsd": 0.013919447925,
+      "poolTvlUsd": 501668.56337196357,
       "poolVolume24hUsd": 124567.220021877,
-      "poolFeeApr": 18.157748100000003
+      "poolFeeApr": 18.1573308
     },
     {
       "positionAddress": "3awA2cYUejR12swLtpB6EzyZfTQZ15FT4QEU66DmMhtA",
@@ -86,23 +86,23 @@
       "upperTick": 9170,
       "priceLower": 185.8870419811501,
       "priceUpper": 250.16591032367174,
-      "currentPrice": 204.84854543636908,
+      "currentPrice": 204.9785064480656,
       "inRange": true,
-      "nearestBoundaryPct": 9.256352499270676,
-      "distanceToLowerPct": 9.256352499270676,
-      "distanceToUpperPct": 22.122375724351595,
-      "rangeWidthPct": 31.37872822362227,
+      "nearestBoundaryPct": 9.31388602529046,
+      "distanceToLowerPct": 9.31388602529046,
+      "distanceToUpperPct": 22.04494737454586,
+      "rangeWidthPct": 31.358833399836318,
       "riskLevel": "low",
-      "liquidityUsd": 2911.1651704995998,
-      "earnedUsd": 68.73068139669999,
-      "earnedPct": 2.2216435999999997,
-      "pnlUsd": -113.79031483074809,
-      "pnlPct": -3.6781466999999997,
-      "apr": 9.4613324,
+      "liquidityUsd": 2912.3944724917,
+      "earnedUsd": 68.73858481949999,
+      "earnedPct": 2.2218991,
+      "pnlUsd": -112.55310941584813,
+      "pnlPct": -3.6381554000000005,
+      "apr": 9.4607624,
       "bonusUsd": 0.28363255013,
-      "poolTvlUsd": 452728.45502466813,
+      "poolTvlUsd": 452789.1189476184,
       "poolVolume24hUsd": 58666.2413767542,
-      "poolFeeApr": 9.4613324
+      "poolFeeApr": 9.4607624
     },
     {
       "positionAddress": "C8kHBWRDnJSwhSorPyFxmvFxvc3rUpJUfWAtcheQVjkF",
@@ -123,16 +123,16 @@
       "distanceToUpperPct": 19.655076320371172,
       "rangeWidthPct": 40.00574918835974,
       "riskLevel": "low",
-      "liquidityUsd": 1001.2315038169357,
-      "earnedUsd": 0.6657487119337036,
-      "earnedPct": 0.06665549999999999,
-      "pnlUsd": 3.1064168409927873,
-      "pnlPct": 0.3110178,
-      "apr": 620.67711,
+      "liquidityUsd": 1001.167904008777,
+      "earnedUsd": 0.6657174253945968,
+      "earnedPct": 0.0666523,
+      "pnlUsd": 3.0427857462949293,
+      "pnlPct": 0.3046469,
+      "apr": 620.6825486,
       "bonusUsd": 0.007755785632264939,
-      "poolTvlUsd": 44276.36768361536,
-      "poolVolume24hUsd": 749673.3951942313,
-      "poolFeeApr": 620.67711
+      "poolTvlUsd": 44273.48217899007,
+      "poolVolume24hUsd": 749674.8470566594,
+      "poolFeeApr": 620.6825486
     }
   ]
 }
