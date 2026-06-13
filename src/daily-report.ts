@@ -42,18 +42,29 @@ async function main() {
 
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
   const recentEvents = await getRecentEvents(since);
-  const claims = recentEvents.filter((e) => e.type === 'fee_claim');
-  const claimedUsd = claims.reduce((a, e) => a + (Number(e.detail?.claimedUsd) || 0), 0);
+
+  // 實際每日手續費收益 = 累計手續費的日差（earnedUsd 為累計值，領取不會歸零，故差值即當日實賺）
+  const dailyFee = last ? summary.earnedUsd - last.earnedUsd : undefined;
+  // 由實際每日收益年化（更貼近真實，相對於池子的預估 APR）
+  const realApr =
+    dailyFee !== undefined && summary.liquidityUsd > 0
+      ? (dailyFee / summary.liquidityUsd) * 365 * 100
+      : undefined;
 
   const lines: string[] = [];
   lines.push(`📊 <b>Byreal LP 每日報告</b>｜${summary.date}`);
   lines.push('');
   lines.push(deltaLine('💵 總倉位', summary.liquidityUsd, last?.liquidityUsd));
-  lines.push(deltaLine('🪙 未領手續費', summary.earnedUsd, last?.earnedUsd));
+  if (dailyFee !== undefined) {
+    lines.push(`💰 今日手續費收益：${usd(dailyFee)}`);
+    if (realApr !== undefined) lines.push(`📐 實際年化(估)：${realApr.toFixed(1)}%`);
+  } else {
+    lines.push('💰 今日手續費收益：（明日起開始計算）');
+  }
+  lines.push(deltaLine('🪙 累計手續費', summary.earnedUsd, last?.earnedUsd));
   if (summary.bonusUsd > 0) lines.push(`🎁 未領獎勵：${usd(summary.bonusUsd)}`);
   lines.push(deltaLine('📈 持倉損益(PnL)', summary.pnlUsd, last?.pnlUsd));
-  lines.push(deltaLine('⚡ 加權 APR', summary.weightedApr, last?.weightedApr, false));
-  if (claims.length > 0) lines.push(`💰 過去 24h 領取手續費：${usd(claimedUsd)}（${claims.length} 次）`);
+  lines.push(deltaLine('⚡ 加權池子 APR', summary.weightedApr, last?.weightedApr, false));
   lines.push(`📍 部位：${summary.positionCount} 個，區間內 ${summary.inRangeCount} 個`);
   lines.push('');
 
@@ -64,7 +75,7 @@ async function main() {
     for (const p of active) {
       const flag = !p.inRange ? '🚨出界' : p.riskLevel === 'high' ? '⚠️快出界' : p.riskLevel === 'medium' ? '🟡偏離' : '🟢';
       lines.push(
-        `${flag} <b>${p.pair}</b>｜${usd(p.liquidityUsd)}｜手續費 ${usd(p.earnedUsd)}｜APR ${p.apr.toFixed(1)}%`,
+        `${flag} <b>${p.pair}</b>｜${usd(p.liquidityUsd)}｜累計手續費 ${usd(p.earnedUsd)}｜APR ${p.apr.toFixed(1)}%`,
       );
       lines.push(`    價格 ${price(p.currentPrice)}｜區間 ${price(p.priceLower)}~${price(p.priceUpper)}`);
     }

@@ -9,9 +9,7 @@ import type { PrevPositionState } from './supabase.ts';
 import { usd, pct, price } from './format.ts';
 
 // 變動判定門檻
-const LIQ_CHANGE_PCT = 5; // 倉位金額變動超過 5% 視為加/減倉
-const FEE_CLAIM_MIN_USD = 0.2; // 未領手續費掉到接近 0 且原本 > 此值 → 視為領取
-const FEE_CLAIM_DROP_RATIO = 0.4; // 掉到原本的 40% 以下
+const LIQ_CHANGE_PCT = 15; // 倉位 USD 金額變動超過此值才視為加/減倉（避免價格波動誤報）
 
 export function detectEvents(
   snap: PortfolioSnapshot,
@@ -47,21 +45,12 @@ export function detectEvents(
       }));
     }
 
-    // 領取手續費：未領手續費由有變到趨近 0
-    if (
-      before.earnedUsd >= FEE_CLAIM_MIN_USD &&
-      p.earnedUsd <= before.earnedUsd * FEE_CLAIM_DROP_RATIO &&
-      p.earnedUsd < before.earnedUsd - FEE_CLAIM_MIN_USD / 2
-    ) {
-      const claimed = before.earnedUsd - p.earnedUsd;
-      events.push(mk('fee_claim', now, p, `💰 領取手續費 <b>${p.pair}</b>｜約 ${usd(claimed)}`, {
-        claimedUsd: claimed,
-        before: before.earnedUsd,
-        after: p.earnedUsd,
-      }));
-    }
+    // 註：領取手續費無法用 earnedUsd 偵測——Byreal 的 earnedUsd 是「累計」手續費，
+    // 領取後不會歸零，所以差分看不到領取動作。若要精準記錄領取，需改用 Solana RPC
+    // 解析錢包交易（未來可加）。這裡不再產生 fee_claim 事件以免誤報。
 
-    // 加 / 減倉：流動性金額顯著變動（排除純價格波動造成的小幅變化）
+    // 加 / 減倉：流動性金額顯著變動。注意 liquidityUsd 會隨價格波動，故門檻設高一點，
+    // 只在「大幅跳動」時才當作真的加/減倉，降低誤報。
     if (before.liquidityUsd > 0) {
       const changePct = ((p.liquidityUsd - before.liquidityUsd) / before.liquidityUsd) * 100;
       if (changePct > LIQ_CHANGE_PCT) {
