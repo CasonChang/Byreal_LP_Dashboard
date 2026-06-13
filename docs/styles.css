@@ -65,8 +65,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
 }
 .tabs button.active { color: var(--text); border-color: var(--accent); background: #1d2c47; }
 
-.chart-wrap { position: relative; height: 300px; width: 100%; }
-.chart-wrap canvas { position: absolute; inset: 0; }
+.chart-wrap { position: relative; height: 300px; max-height: 300px; width: 100%; overflow: hidden; }
+.chart-wrap canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; }
 
 .positions { display: grid; gap: 14px; }
 .pos {
