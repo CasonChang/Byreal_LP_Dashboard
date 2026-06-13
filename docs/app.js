@@ -59,7 +59,7 @@ function renderSummary(t) {
     { label: '未領手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val' },
     { label: '未領獎勵', value: fmtUsd(t.bonusUsd), cls: t.bonusUsd > 0 ? 'pos-val' : '' },
     { label: '持倉損益', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd) },
-    { label: '加權 APR', value: fmtPct(t.weightedApr) },
+    { label: '加權池子 APR', value: fmtPct(t.weightedApr) },
     { label: '部位 / 區間內', value: `${t.positionCount} / ${t.inRangeCount}`, small: true },
   ];
   document.getElementById('summaryCards').innerHTML = cards
@@ -94,7 +94,8 @@ function renderPositions(positions) {
           <div class="metric"><div class="k">手續費</div><div class="v pos-val">${fmtUsd(p.earnedUsd)}</div></div>
           <div class="metric"><div class="k">獎勵</div><div class="v">${fmtUsd(p.bonusUsd)}</div></div>
           <div class="metric"><div class="k">損益</div><div class="v ${cls(p.pnlUsd)}">${fmtUsd(p.pnlUsd)}</div></div>
-          <div class="metric"><div class="k">APR</div><div class="v">${fmtPct(p.apr)}</div></div>
+          <div class="metric"><div class="k">池子APR</div><div class="v">${fmtPct(p.apr)}</div></div>
+          <div class="metric"><div class="k">累計收益率</div><div class="v pos-val">${fmtPct(p.earnedPct)}</div></div>
           <div class="metric"><div class="k">目前價格</div><div class="v">${fmtPrice(p.currentPrice)}</div></div>
           <div class="metric"><div class="k">距邊界</div><div class="v">${p.nearestBoundaryPct >= 0 ? p.nearestBoundaryPct.toFixed(1) : '出界 ' + Math.abs(p.nearestBoundaryPct).toFixed(1)}%</div></div>
         </div>

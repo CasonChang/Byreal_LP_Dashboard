@@ -89,7 +89,11 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       earnedPct: parseFloat(raw.earnedUsdPercent || '0') * 100,
       pnlUsd: parseFloat(raw.pnlUsd || '0'),
       pnlPct: parseFloat(raw.pnlUsdPercent || '0') * 100,
-      apr: parseFloat(raw.apr || '0') * 100,
+      // position/list 多半不回傳部位 APR，退回池子 24h 手續費 APR 作為年化參考
+      apr: (() => {
+        const posApr = parseFloat(raw.apr || '0') * 100;
+        return posApr > 0 ? posApr : (detail?.feeApr ?? 0);
+      })(),
       bonusUsd: parseFloat(raw.bonusUsd || '0'),
       poolTvlUsd: detail?.tvlUsd ?? 0,
       poolVolume24hUsd: detail?.volume24hUsd ?? 0,
