@@ -11,10 +11,10 @@
 import { config, assertConfig } from './config.ts';
 import { buildSnapshot } from './metrics.ts';
 import { detectEvents } from './events.ts';
-import { getPreviousStates, saveSnapshot, saveEvents } from './supabase.ts';
+import { saveSnapshot, saveEvents } from './supabase.ts';
 import { sendTelegram } from './telegram.ts';
-import { exportJson } from './export.ts';
-import { usd, pct } from './format.ts';
+import { exportJson, readPreviousPositions } from './export.ts';
+import { usd } from './format.ts';
 import type { LpEvent } from './types.ts';
 
 // 這些事件類型會即時推播
@@ -34,12 +34,14 @@ async function main() {
   assertConfig({ needSupabase: true, needTelegram: true });
   console.log(`[collect] 錢包: ${config.wallets.join(', ')}${config.dryRun ? ' (DRY_RUN)' : ''}`);
 
+  // 先讀上一份快照（用於事件差分），再覆寫
+  const prev = await readPreviousPositions();
+
   const snap = await buildSnapshot(config.wallets);
   console.log(
-    `[collect] 部位 ${snap.totals.positionCount} 個（active ${snap.totals.activeCount}，區間內 ${snap.totals.inRangeCount}）｜總倉位 ${usd(snap.totals.liquidityUsd)}｜未領手續費 ${usd(snap.totals.earnedUsd)}`,
+    `[collect] 部位 ${snap.totals.positionCount} 個（active ${snap.totals.activeCount}，區間內 ${snap.totals.inRangeCount}）｜總倉位 ${usd(snap.totals.liquidityUsd)}｜累計手續費 ${usd(snap.totals.earnedUsd)}｜未領 ${usd(snap.totals.unclaimedFeeUsd)}`,
   );
 
-  const prev = await getPreviousStates();
   const events = detectEvents(snap, prev);
   console.log(`[collect] 偵測到 ${events.length} 個事件`);
 

@@ -1,19 +1,22 @@
 /**
- * 事件偵測：比對「本次快照」與「上次每個部位的狀態」推論發生了什麼動作。
+ * 事件偵測：比對「本次快照」與「上一次快照（前一份 latest.json）」推論發生了什麼動作。
  * 因為我們不碰錢包、只讀資料，所以用快照差分來推測動作（非鏈上精準，但足以記錄策略行為）。
+ *
+ * prev 直接用上一份 PortfolioSnapshot 的 positions（由 collect 從 docs/data/latest.json 載入），
+ * 不依賴資料庫，較穩定。
  */
 
-import { config } from './config.ts';
 import type { LpEvent, PortfolioSnapshot, PositionMetric } from './types.ts';
-import type { PrevPositionState } from './supabase.ts';
-import { usd, pct, price } from './format.ts';
+import { usd, price } from './format.ts';
 
 // 變動判定門檻
 const LIQ_CHANGE_PCT = 15; // 倉位 USD 金額變動超過此值才視為加/減倉（避免價格波動誤報）
+const FEE_CLAIM_MIN_USD = 0.5; // 未領手續費至少下降此金額才算領取
+const FEE_CLAIM_DROP_RATIO = 0.5; // 未領手續費掉到原本的 50% 以下才算領取
 
 export function detectEvents(
   snap: PortfolioSnapshot,
-  prev: Map<string, PrevPositionState>,
+  prev: Map<string, PositionMetric>,
 ): LpEvent[] {
   const events: LpEvent[] = [];
   const now = snap.capturedAt;
@@ -45,12 +48,22 @@ export function detectEvents(
       }));
     }
 
-    // 註：領取手續費無法用 earnedUsd 偵測——Byreal 的 earnedUsd 是「累計」手續費，
-    // 領取後不會歸零，所以差分看不到領取動作。若要精準記錄領取，需改用 Solana RPC
-    // 解析錢包交易（未來可加）。這裡不再產生 fee_claim 事件以免誤報。
+    // 領取手續費：未領手續費（unclaimedFeeUsd，精確值）大幅下降 → 判定為領取
+    const beforeUnclaimed = before.unclaimedFeeUsd ?? 0;
+    if (
+      beforeUnclaimed >= FEE_CLAIM_MIN_USD &&
+      p.unclaimedFeeUsd <= beforeUnclaimed * FEE_CLAIM_DROP_RATIO &&
+      beforeUnclaimed - p.unclaimedFeeUsd >= FEE_CLAIM_MIN_USD
+    ) {
+      const claimed = beforeUnclaimed - p.unclaimedFeeUsd;
+      events.push(mk('fee_claim', now, p, `💰 領取手續費 <b>${p.pair}</b>｜約 ${usd(claimed)}`, {
+        claimedUsd: claimed,
+        before: beforeUnclaimed,
+        after: p.unclaimedFeeUsd,
+      }));
+    }
 
-    // 加 / 減倉：流動性金額顯著變動。注意 liquidityUsd 會隨價格波動，故門檻設高一點，
-    // 只在「大幅跳動」時才當作真的加/減倉，降低誤報。
+    // 加 / 減倉：流動性金額顯著變動。注意 liquidityUsd 會隨價格波動，故門檻設高一點。
     if (before.liquidityUsd > 0) {
       const changePct = ((p.liquidityUsd - before.liquidityUsd) / before.liquidityUsd) * 100;
       if (changePct > LIQ_CHANGE_PCT) {
@@ -81,8 +94,8 @@ export function detectEvents(
       type: 'close',
       occurredAt: now,
       positionAddress: addr,
-      pair: '',
-      message: `📕 關閉部位（已不在 active 清單）｜原倉位 ${usd(before.liquidityUsd)}`,
+      pair: before.pair,
+      message: `📕 關閉部位 <b>${before.pair}</b>（已不在 active 清單）｜原倉位 ${usd(before.liquidityUsd)}`,
       detail: { lastLiquidityUsd: before.liquidityUsd },
     });
   }
@@ -90,7 +103,7 @@ export function detectEvents(
   return events;
 }
 
-function rangeAlert(p: PositionMetric, before: PrevPositionState, now: string): LpEvent | null {
+function rangeAlert(p: PositionMetric, before: PositionMetric, now: string): LpEvent | null {
   // 已出界（之前還在內）
   if (!p.inRange && before.inRange) {
     return mk('out_of_range', now, p, `🚨 <b>${p.pair}</b> 已出界！目前價格 ${price(p.currentPrice)}，區間 ${price(p.priceLower)}~${price(p.priceUpper)}（已停止賺取手續費）`, {
@@ -105,9 +118,8 @@ function rangeAlert(p: PositionMetric, before: PrevPositionState, now: string): 
       currentPrice: p.currentPrice,
     });
   }
-  // 快出界：由非 high/out 升級到 high（距邊界 < warnPct 由 medium 進到 high，或剛進入 medium）
-  const warnLevels = ['high'];
-  if (p.inRange && warnLevels.includes(p.riskLevel) && before.riskLevel !== p.riskLevel && before.riskLevel !== 'out') {
+  // 快出界：剛升級到 high（距邊界 < warnPct）
+  if (p.inRange && p.riskLevel === 'high' && before.riskLevel !== 'high' && before.riskLevel !== 'out') {
     return mk('range_warning', now, p, `⚠️ <b>${p.pair}</b> 快出界！距最近邊界僅 ${Math.abs(p.nearestBoundaryPct).toFixed(1)}%（價格 ${price(p.currentPrice)}，區間 ${price(p.priceLower)}~${price(p.priceUpper)}）`, {
       nearestBoundaryPct: p.nearestBoundaryPct,
       currentPrice: p.currentPrice,

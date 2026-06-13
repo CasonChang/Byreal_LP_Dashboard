@@ -25,8 +25,17 @@ export interface RawPosition {
   earnedUsdPercent?: string;
   pnlUsd?: string;
   pnlUsdPercent?: string;
-  apr?: string;
+  apr?: string | null;
   bonusUsd?: string;
+  /** 未領取的手續費（每個 token 一筆，amount × price = USD） */
+  unclaimedData?: Array<{ tokenSymbol?: string; amount?: string; price?: string; type?: number }>;
+  /** 開倉至今投入的本金（USD） */
+  totalDeposit?: string;
+  /** 已領取的手續費 + 獎勵累計（USD） */
+  totalClaimedFeesRewards?: string;
+  /** 部位存在時間（毫秒） */
+  positionAgeMs?: number;
+  openTime?: number;
 }
 
 export interface PoolMapEntry {
@@ -81,11 +90,16 @@ export interface PositionMetric {
   riskLevel: RiskLevel;
 
   liquidityUsd: number;
-  earnedUsd: number;
+  earnedUsd: number; // 累計手續費（lifetime）
   earnedPct: number;
+  unclaimedFeeUsd: number; // 目前未領取手續費（可領）
+  claimedFeeUsd: number; // 已領取手續費（= 累計 − 未領）
+  depositUsd: number; // 投入本金
+  realApr: number; // 自開倉的實際年化（由累計手續費 / 本金 / 持倉時間推算）
+  ageDays: number; // 部位存在天數
   pnlUsd: number;
   pnlPct: number;
-  apr: number;
+  apr: number; // 池子預估 APR（fallback）
   bonusUsd: number;
 
   poolTvlUsd: number;
@@ -100,13 +114,17 @@ export interface PortfolioSnapshot {
   wallets: string[];
   totals: {
     liquidityUsd: number;
-    earnedUsd: number;
+    earnedUsd: number; // 累計手續費
+    unclaimedFeeUsd: number; // 未領手續費
+    claimedFeeUsd: number; // 已領手續費
+    depositUsd: number; // 總投入本金
     bonusUsd: number;
     pnlUsd: number;
     positionCount: number;
     activeCount: number;
     inRangeCount: number;
-    weightedApr: number;
+    weightedApr: number; // 加權池子預估 APR
+    realApr: number; // 整體實際年化（累計手續費 / 本金 年化）
   };
   positions: PositionMetric[];
 }

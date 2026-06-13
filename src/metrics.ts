@@ -65,6 +65,20 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       ? Math.min(distanceToLowerPct, distanceToUpperPct)
       : -Math.min(Math.abs(distanceToLowerPct), Math.abs(distanceToUpperPct));
 
+    // 未領手續費（精確）：unclaimedData 各 token amount × price 加總
+    const unclaimedFee = (raw.unclaimedData || []).reduce(
+      (s, t) => s + parseFloat(t.amount || '0') * parseFloat(t.price || '0'),
+      0,
+    );
+    const earnedUsdVal = parseFloat(raw.earnedUsd || '0');
+    const depositUsd = parseFloat(raw.totalDeposit || '0');
+    // 部位存在時間 → 自開倉的實際年化
+    const ageMs = raw.positionAgeMs || (raw.openTime ? Date.now() - raw.openTime : 0);
+    const ageDays = ageMs > 0 ? ageMs / 86_400_000 : 0;
+    const YEAR_MS = 365 * 86_400_000;
+    const realApr =
+      ageMs > 0 && depositUsd > 0 ? (earnedUsdVal / depositUsd) * (YEAR_MS / ageMs) * 100 : 0;
+
     positions.push({
       positionAddress: raw.positionAddress,
       nftMint: raw.nftMintAddress,
@@ -87,9 +101,14 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       liquidityUsd: parseFloat(raw.liquidityUsd || '0'),
       earnedUsd: parseFloat(raw.earnedUsd || '0'),
       earnedPct: parseFloat(raw.earnedUsdPercent || '0') * 100,
+      unclaimedFeeUsd: unclaimedFee,
+      claimedFeeUsd: Math.max(0, earnedUsdVal - unclaimedFee),
+      depositUsd,
+      realApr,
+      ageDays,
       pnlUsd: parseFloat(raw.pnlUsd || '0'),
       pnlPct: parseFloat(raw.pnlUsdPercent || '0') * 100,
-      // position/list 多半不回傳部位 APR，退回池子 24h 手續費 APR 作為年化參考
+      // position/list 的部位 APR 多半為 null，退回池子 24h 手續費 APR 作為預估
       apr: (() => {
         const posApr = parseFloat(raw.apr || '0') * 100;
         return posApr > 0 ? posApr : (detail?.feeApr ?? 0);
@@ -102,19 +121,27 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
   }
 
   const totalLiquidity = sum(positions.map((p) => p.liquidityUsd));
+  const totalDeposit = sum(positions.map((p) => p.depositUsd));
+  const totalEarned = sum(positions.map((p) => p.earnedUsd));
+  // 整體實際年化：以本金加權各部位的實際年化
+  const realApr =
+    totalDeposit > 0 ? sum(positions.map((p) => p.realApr * p.depositUsd)) / totalDeposit : 0;
   const totals = {
     liquidityUsd: totalLiquidity,
-    earnedUsd: sum(positions.map((p) => p.earnedUsd)),
+    earnedUsd: totalEarned,
+    unclaimedFeeUsd: sum(positions.map((p) => p.unclaimedFeeUsd)),
+    claimedFeeUsd: sum(positions.map((p) => p.claimedFeeUsd)),
+    depositUsd: totalDeposit,
     bonusUsd: sum(positions.map((p) => p.bonusUsd)),
     pnlUsd: sum(positions.map((p) => p.pnlUsd)),
     positionCount: positions.length,
     activeCount: positions.filter((p) => p.status === 'active').length,
     inRangeCount: positions.filter((p) => p.inRange).length,
-    // 以倉位金額加權的平均 APR
     weightedApr:
       totalLiquidity > 0
         ? sum(positions.map((p) => p.apr * p.liquidityUsd)) / totalLiquidity
         : 0,
+    realApr,
   };
 
   return {
