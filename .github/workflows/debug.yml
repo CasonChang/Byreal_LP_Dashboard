@@ -1,0 +1,19 @@
+name: 診斷 API 原始回傳
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 印出原始 API 回傳
+        env:
+          WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
+        run: npx tsx src/debug.ts
