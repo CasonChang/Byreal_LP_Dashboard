@@ -92,8 +92,10 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
 .badge.high { background: rgba(251,146,60,.18); color: var(--orange); }
 .badge.out { background: rgba(248,113,113,.18); color: var(--red); }
 
-.pos-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px,1fr)); gap: 10px; margin: 14px 0; }
+/* 固定 7 欄，讓第一排(7 項)與第二排(5 項)欄位對齊，右邊自然留白 */
+.pos-metrics { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 12px; margin: 14px 0; }
 .pos-metrics.pool-metrics { margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--border); }
+@media (max-width: 680px) { .pos-metrics { grid-template-columns: repeat(3, minmax(0,1fr)); } }
 .metric .k { color: var(--muted); font-size: 12px; }
 .metric .v { font-size: 15px; font-weight: 600; }
 .info[data-tip] { cursor: help; }
@@ -127,10 +129,15 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
 .panel.strategy .cards { margin-bottom: 0; }
 
 .closed-table { display: flex; flex-direction: column; gap: 2px; overflow-x: auto; }
-.ct-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr .8fr 1fr; gap: 8px; padding: 9px 12px; align-items: center; font-size: 13px; min-width: 560px; }
+.ct-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1fr .8fr 1fr; gap: 8px; padding: 9px 12px; align-items: center; font-size: 13px; min-width: 680px; }
 .ct-row:not(.ct-head):nth-child(even) { background: var(--panel-2); border-radius: 8px; }
 .ct-head { color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--border); }
 .ct-row .pair-cell { font-weight: 600; }
+
+.pager { display: flex; gap: 14px; align-items: center; justify-content: center; margin-top: 14px; color: var(--muted); font-size: 13px; }
+.pager button { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); padding: 5px 13px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.pager button:hover:not(:disabled) { border-color: var(--accent); }
+.pager button:disabled { opacity: .4; cursor: default; }
 
 .panel.notes ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.75; }
 .panel.notes li { margin-bottom: 6px; }

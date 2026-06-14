@@ -75,17 +75,22 @@ function render(snap, history) {
 }
 
 function renderSummary(t) {
+  const totalReturn = (t.earnedUsd ?? 0) + (t.pnlUsd ?? 0);
   const cards = [
     { label: '總倉位價值', value: fmtUsd(t.liquidityUsd),
       tip: '目前所有部位的現值總和（部位內兩種代幣數量 × 現價）。' },
+    { label: '投入本金', value: fmtUsd(t.depositUsd ?? 0),
+      tip: '目前現有部位投入的本金合計。' },
+    { label: '累積手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val',
+      tip: '現有部位開倉至今的手續費（已領＋未領）。已關閉部位的手續費請看下方策略總覽。' },
     { label: '手續費年化', value: fmtPct(t.realApr ?? 0), cls: (t.realApr ?? 0) > 0 ? 'pos-val' : '',
       tip: '只算手續費：Σ(累計手續費) ÷ 投入本金，再依持倉時間換算成一年。不含價格漲跌。' },
+    { label: '損益(不含手續費)', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd),
+      tip: '只看「現有部位」的未實現損益：部位現值 − 投入本金，來自代幣價格變動與無常損失（IL）。不含手續費。' },
+    { label: '總報酬', value: fmtUsd(totalReturn), cls: cls(totalReturn),
+      tip: '手續費 ＋ 損益的合計金額（現有部位）。' },
     { label: '總報酬年化', value: fmtPct(t.totalReturnApr ?? 0), cls: cls(t.totalReturnApr ?? 0),
-      tip: '含手續費＋持倉損益：Σ(累計手續費 + 持倉損益) ÷ 投入本金，年化。' },
-    { label: '累計手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val',
-      tip: '開倉至今賺到的手續費總額（已領＋未領）。註：目前只統計「現有部位」，已關閉的部位尚未納入（規劃中）。' },
-    { label: '持倉損益(不含手續費)', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd),
-      tip: '只看「現有部位」的未實現損益：部位現值 − 投入本金，來自代幣價格變動與無常損失（IL）。不含手續費。（已關閉部位的損益請看下方策略總覽）' },
+      tip: '含手續費＋損益：Σ(累計手續費 + 損益) ÷ 投入本金，年化。' },
     { label: '部位 / 區間內', value: `${t.positionCount} / ${t.inRangeCount}`, small: true,
       tip: '目前部位數 / 價格仍在區間內（持續賺手續費）的部位數。' },
   ];
@@ -96,37 +101,63 @@ function renderStrategy(s) {
   const panel = document.getElementById('strategyPanel');
   if (!s) { panel.style.display = 'none'; return; }
   panel.style.display = '';
+  const totalReturn = (s.lifetimeFeesUsd ?? 0) + (s.lifetimePnlUsd ?? 0);
   const cards = [
-    { label: '策略手續費年化', value: fmtPct(s.feeApr), cls: s.feeApr > 0 ? 'pos-val' : '',
-      tip: '資金×時間加權：累計手續費(含已關閉) ÷ Σ(本金×持倉年數)。把每一塊錢、每一天的手續費績效平均，開倉/關倉/加減倉都正確納入。' },
-    { label: '策略總報酬年化', value: fmtPct(s.totalReturnApr), cls: cls(s.totalReturnApr),
-      tip: '含損益：(累計手續費 + 累計損益) ÷ Σ(本金×持倉年數)。' },
     { label: '累計手續費', value: fmtUsd(s.lifetimeFeesUsd), cls: 'pos-val',
       tip: `含已關閉 ${fmtUsd(s.realizedFeesUsd)} ＋ 現有 ${fmtUsd(s.unrealizedFeesUsd)}` },
+    { label: '策略手續費年化', value: fmtPct(s.feeApr), cls: s.feeApr > 0 ? 'pos-val' : '',
+      tip: '資金×時間加權：累計手續費(含已關閉) ÷ Σ(本金×持倉年數)。把每一塊錢、每一天的手續費績效平均，開倉/關倉/加減倉都正確納入。' },
     { label: '總損益(不含手續費)', value: fmtUsd(s.lifetimePnlUsd), cls: cls(s.lifetimePnlUsd),
       tip: '所有部位(含已關閉)的已實現＋未實現損益合計，來自價格變動/無常損失，不含手續費。' },
+    { label: '總報酬', value: fmtUsd(totalReturn), cls: cls(totalReturn),
+      tip: '累計手續費 ＋ 累計損益（含已關閉部位）。' },
+    { label: '策略總報酬年化', value: fmtPct(s.totalReturnApr), cls: cls(s.totalReturnApr),
+      tip: '含損益：(累計手續費 + 累計損益) ÷ Σ(本金×持倉年數)。' },
     { label: '部位(現有/已關閉)', value: `${s.activeCount} / ${s.closedCount}`, small: true,
       tip: `已關閉部位平均持倉 ${(s.avgHoldDays ?? 0).toFixed(1)} 天` },
   ];
   document.getElementById('strategyCards').innerHTML = cards.map(cardHtml).join('');
 }
 
+let closedRows = [], closedPage = 0;
+const CLOSED_PER_PAGE = 10;
+
 function renderClosed(rows) {
   const panel = document.getElementById('closedPanel');
   if (!rows || !rows.length) { panel.style.display = 'none'; return; }
   panel.style.display = '';
-  document.getElementById('closedTitle').textContent = `已關閉部位歷史（${rows.length} 筆）`;
-  const head = `<div class="ct-row ct-head"><span>交易對</span><span>本金</span><span>手續費</span><span>損益</span><span>手續費年化</span><span>持倉</span><span>開倉日</span></div>`;
-  const body = rows.map((r) => `<div class="ct-row">
+  closedRows = rows;
+  closedPage = 0;
+  renderClosedPage();
+}
+
+function renderClosedPage() {
+  const total = closedRows.length;
+  const pages = Math.ceil(total / CLOSED_PER_PAGE);
+  closedPage = Math.max(0, Math.min(closedPage, pages - 1));
+  const slice = closedRows.slice(closedPage * CLOSED_PER_PAGE, closedPage * CLOSED_PER_PAGE + CLOSED_PER_PAGE);
+  document.getElementById('closedTitle').textContent = `已關閉部位歷史（${total} 筆）`;
+  const head = `<div class="ct-row ct-head"><span>交易對</span><span>本金</span><span>手續費</span><span>損益</span><span>手續費年化</span><span>總報酬年化</span><span>持倉</span><span>開倉日</span></div>`;
+  const body = slice.map((r) => `<div class="ct-row">
     <span class="pair-cell">${r.pair}</span>
     <span>${fmtUsd(r.depositUsd)}</span>
     <span class="pos-val">${fmtUsd(r.earnedUsd)}</span>
     <span class="${cls(r.pnlUsd)}">${fmtUsd(r.pnlUsd)}</span>
     <span>${fmtPct(r.feeApr)}</span>
+    <span class="${cls(r.totalReturnApr)}">${fmtPct(r.totalReturnApr)}</span>
     <span>${(r.ageDays ?? 0).toFixed(1)}天</span>
     <span>${fmtDate(r.openTime)}</span>
   </div>`).join('');
   document.getElementById('closedPositions').innerHTML = head + body;
+
+  const pager = document.getElementById('closedPager');
+  if (pages <= 1) { pager.innerHTML = ''; return; }
+  pager.innerHTML = `<button ${closedPage === 0 ? 'disabled' : ''} id="cPrev">‹ 上一頁</button>
+    <span>${closedPage + 1} / ${pages}</span>
+    <button ${closedPage >= pages - 1 ? 'disabled' : ''} id="cNext">下一頁 ›</button>`;
+  const prev = document.getElementById('cPrev'), next = document.getElementById('cNext');
+  if (prev) prev.onclick = () => { closedPage--; renderClosedPage(); };
+  if (next) next.onclick = () => { closedPage++; renderClosedPage(); };
 }
 
 function renderPositions(positions) {
@@ -177,6 +208,7 @@ function perfMetrics(p) {
     mtr('累積手續費', fmtUsd(p.earnedUsd), feeTip, 'pos-val'),
     mtr('手續費年化', fmtPct(p.realApr ?? 0), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。', (p.realApr ?? 0) > 0 ? 'pos-val' : ''),
     mtr('損益(不含手續費)', fmtUsd(p.pnlUsd), '代幣價格變動 / 無常損失（IL），不含手續費。', cls(p.pnlUsd)),
+    mtr('總報酬', fmtUsd(p.totalReturnUsd ?? ((p.earnedUsd ?? 0) + (p.pnlUsd ?? 0))), '累積手續費 ＋ 損益的合計金額（你這筆實際賺賠多少）。', cls(p.totalReturnUsd ?? ((p.earnedUsd ?? 0) + (p.pnlUsd ?? 0)))),
     mtr('總報酬年化', fmtPct(p.totalReturnApr ?? 0), '含損益：((累計手續費 + 損益) ÷ 投入本金) 年化。', cls(p.totalReturnApr ?? 0)),
   ].join('');
 }
