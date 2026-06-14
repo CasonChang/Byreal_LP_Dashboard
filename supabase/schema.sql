@@ -17,6 +17,12 @@ create table if not exists public.snapshots (
 );
 create index if not exists snapshots_captured_at_idx on public.snapshots (captured_at desc);
 
+-- 策略級欄位（含已關閉部位的累計）；舊專案請執行下面這段 ALTER 升級
+alter table public.snapshots add column if not exists strategy_fees_usd  numeric;
+alter table public.snapshots add column if not exists strategy_pnl_usd   numeric;
+alter table public.snapshots add column if not exists strategy_fee_apr   numeric;
+alter table public.snapshots add column if not exists strategy_total_apr numeric;
+
 -- 每個部位、每次收集的明細
 create table if not exists public.position_snapshots (
   id                   bigserial primary key,

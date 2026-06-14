@@ -30,6 +30,13 @@ const fmtTime = (iso) =>
   new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 const fmtDate = (ms) =>
   ms ? new Date(ms).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', year: '2-digit', month: '2-digit', day: '2-digit' }) : '—';
+const fmtDuration = (days) => {
+  const totalMin = Math.max(0, Math.round((days ?? 0) * 24 * 60));
+  const d = Math.floor(totalMin / 1440);
+  const h = Math.floor((totalMin % 1440) / 60);
+  const m = totalMin % 60;
+  return `${d}天 ${h}時 ${m}分`;
+};
 
 const RISK_LABEL = { low: '🟢 健康', medium: '🟡 偏離', high: '⚠️ 快出界', out: '🚨 已出界' };
 
@@ -79,8 +86,6 @@ function renderSummary(t) {
   const cards = [
     { label: '總倉位價值', value: fmtUsd(t.liquidityUsd),
       tip: '目前所有部位的現值總和（部位內兩種代幣數量 × 現價）。' },
-    { label: '投入本金', value: fmtUsd(t.depositUsd ?? 0),
-      tip: '目前現有部位投入的本金合計。' },
     { label: '累積手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val',
       tip: '現有部位開倉至今的手續費（已領＋未領）。已關閉部位的手續費請看下方策略總覽。' },
     { label: '手續費年化', value: fmtPct(t.realApr ?? 0), cls: (t.realApr ?? 0) > 0 ? 'pos-val' : '',
@@ -177,8 +182,11 @@ function renderPositions(positions) {
       return `
       <div class="pos">
         <div class="pos-top">
-          <span class="pair">${p.pair}</span>
-          <span class="badge ${p.riskLevel}">${RISK_LABEL[p.riskLevel] || p.riskLevel}</span>
+          <div class="pt-left">
+            <span class="pair">${p.pair}</span>
+            <span class="badge ${p.riskLevel}">${RISK_LABEL[p.riskLevel] || p.riskLevel}</span>
+          </div>
+          <span class="hold">⏱ 持倉 ${fmtDuration(p.ageDays)}</span>
         </div>
 
         <div class="pos-metrics">${perfMetrics(p)}</div>
@@ -237,8 +245,8 @@ function renderEvents(events) {
 
 function stripHtml(s) { return String(s || '').replace(/<\/?b>/g, ''); }
 
-const METRIC_LABEL = { liquidityUsd: '總倉位 (USD)', earnedUsd: '累計手續費 (USD)', pnlUsd: '持倉損益 (USD)', weightedApr: '加權 APR (%)' };
-const CHART_TITLE = { liquidityUsd: '總倉位', earnedUsd: '累計手續費', pnlUsd: '持倉損益', weightedApr: '加權 APR' };
+const METRIC_LABEL = { liquidityUsd: '總倉位 (USD)', lifetimeFeesUsd: '累計手續費 (USD)', dailyFeeUsd: '每日手續費 (USD)', feeApr: '策略手續費年化 (%)' };
+const CHART_TITLE = { liquidityUsd: '總倉位', lifetimeFeesUsd: '累計手續費', dailyFeeUsd: '每日手續費', feeApr: '策略手續費年化' };
 
 function renderChart(equity, metric) {
   const titleEl = document.getElementById('chartTitle');
@@ -246,17 +254,18 @@ function renderChart(equity, metric) {
   const ctx = document.getElementById('equityChart');
   const labels = equity.map((e) => e.date.slice(5));
   const data = equity.map((e) => e[metric]);
-  const color = metric === 'pnlUsd' ? '#fbbf24' : '#4f9dff';
+  const isBar = metric === 'dailyFeeUsd';
+  const color = metric === 'dailyFeeUsd' || metric === 'lifetimeFeesUsd' ? '#34d399' : '#4f9dff';
 
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
-    type: 'line',
+    type: isBar ? 'bar' : 'line',
     data: {
       labels,
       datasets: [{
         label: METRIC_LABEL[metric], data,
-        borderColor: color, backgroundColor: color + '22',
-        fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2,
+        borderColor: color, backgroundColor: isBar ? color + '99' : color + '22',
+        fill: !isBar, tension: 0.3, pointRadius: 2, borderWidth: 2, borderRadius: isBar ? 4 : 0,
       }],
     },
     options: {

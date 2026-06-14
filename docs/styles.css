@@ -84,7 +84,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
 .pos {
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
 }
-.pos-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.pos-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pt-left { display: flex; align-items: center; gap: 10px; }
+.hold { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; white-space: nowrap; }
 .pair { font-size: 17px; font-weight: 700; }
 .badge { font-size: 12px; padding: 3px 9px; border-radius: 999px; font-weight: 600; }
 .badge.low { background: rgba(52,211,153,.15); color: var(--green); }

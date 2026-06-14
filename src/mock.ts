@@ -90,9 +90,11 @@ const equity = Array.from({ length: 30 }, (_, i) => {
   return {
     date,
     liquidityUsd: 9000 + Math.round(Math.sin(i / 3) * 600 + i * 30),
-    earnedUsd: Math.round((i + 1) * 4.2 * 100) / 100,
+    lifetimeFeesUsd: Math.round((i + 1) * 4.2 * 100) / 100,
+    dailyFeeUsd: Math.round((3 + Math.sin(i / 2) * 1.5) * 100) / 100,
     pnlUsd: Math.round((Math.sin(i / 4) * 150 - 40) * 100) / 100,
-    weightedApr: Math.round((60 + Math.sin(i / 2) * 15) * 10) / 10,
+    feeApr: Math.round((22 + Math.sin(i / 2) * 6) * 10) / 10,
+    totalApr: Math.round((35 + Math.sin(i / 3) * 8) * 10) / 10,
   };
 });
 
