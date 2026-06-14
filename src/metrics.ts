@@ -200,6 +200,7 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
     lifetimeFeesUsd: lifetimeFees,
     lifetimePnlUsd: lifetimePnl,
     totalDepositEverUsd: totalDepositEver,
+    currentDepositUsd: sum(positions.map((p) => p.depositUsd)),
     depositYears,
     feeApr: depositYears > 0 ? (lifetimeFees / depositYears) * 100 : 0,
     totalReturnApr: depositYears > 0 ? ((lifetimeFees + lifetimePnl) / depositYears) * 100 : 0,

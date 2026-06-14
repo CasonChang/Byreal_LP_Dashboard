@@ -130,7 +130,8 @@ export interface ClosedPositionRow {
 export interface StrategySummary {
   lifetimeFeesUsd: number; // 累計手續費（含已關閉）
   lifetimePnlUsd: number; // 累計損益（含已關閉）
-  totalDepositEverUsd: number; // 歷來總投入本金
+  totalDepositEverUsd: number; // 歷來總投入本金（gross：開關倉會重複計入，僅供參考）
+  currentDepositUsd: number; // 目前投入本金（現有部位本金合計）
   depositYears: number; // Σ(本金 × 持倉年數)，年化的分母
   feeApr: number; // 策略手續費年化 = 累計手續費 / depositYears
   totalReturnApr: number; // 策略總報酬年化 = (手續費+損益) / depositYears

@@ -24,7 +24,7 @@ const concFactor = (p) => {
 const fmtAmt = (n) => (n >= 1 ? n.toLocaleString('en-US', { maximumFractionDigits: 4 }) : Number(n).toPrecision(3));
 // 一個帶 tooltip（滑鼠移過去顯示計算方式）的指標小卡
 const mtr = (k, v, tip, valCls = '') =>
-  `<div class="metric" title="${tip || ''}"><div class="k">${k}${tip ? ' <span class="info">ⓘ</span>' : ''}</div><div class="v ${valCls}">${v}</div></div>`;
+  `<div class="metric" data-tip="${tip || ''}"><div class="k">${k}${tip ? ' <span class="info">ⓘ</span>' : ''}</div><div class="v ${valCls}">${v}</div></div>`;
 const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '—');
 const fmtTime = (iso) =>
   new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -79,14 +79,14 @@ function renderSummary(t) {
       tip: '含手續費＋持倉損益：Σ(累計手續費 + 持倉損益) ÷ 投入本金，年化。' },
     { label: '累計手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val',
       tip: '開倉至今賺到的手續費總額（已領＋未領）。註：目前只統計「現有部位」，已關閉的部位尚未納入（規劃中）。' },
-    { label: '持倉損益', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd),
-      tip: '部位現值相對投入本金的變化，主要來自代幣價格變動與無常損失（IL）。不含手續費。' },
+    { label: '持倉損益(不含手續費)', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd),
+      tip: '只看「現有部位」的未實現損益：部位現值 − 投入本金，來自代幣價格變動與無常損失（IL）。不含手續費。（已關閉部位的損益請看下方策略總覽）' },
     { label: '部位 / 區間內', value: `${t.positionCount} / ${t.inRangeCount}`, small: true,
       tip: '目前部位數 / 價格仍在區間內（持續賺手續費）的部位數。' },
   ];
   document.getElementById('summaryCards').innerHTML = cards
     .map(
-      (c) => `<div class="card" title="${c.tip || ''}"><div class="label">${c.label} <span class="info">ⓘ</span></div>
+      (c) => `<div class="card" data-tip="${c.tip || ''}"><div class="label">${c.label} <span class="info">ⓘ</span></div>
       <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`,
     )
     .join('');
@@ -103,15 +103,15 @@ function renderStrategy(s) {
       tip: '含損益：(累計手續費 + 累計損益) ÷ Σ(本金×持倉年數)。' },
     { label: '累計手續費', value: fmtUsd(s.lifetimeFeesUsd), cls: 'pos-val',
       tip: `含已關閉 ${fmtUsd(s.realizedFeesUsd)} ＋ 現有 ${fmtUsd(s.unrealizedFeesUsd)}` },
-    { label: '累計損益', value: fmtUsd(s.lifetimePnlUsd), cls: cls(s.lifetimePnlUsd),
-      tip: '所有部位(含已關閉)的價格變動/無常損失合計，不含手續費。' },
-    { label: '歷來投入本金', value: fmtUsd(s.totalDepositEverUsd),
-      tip: '所有部位(含已關閉)曾投入的本金總額。' },
+    { label: '總損益(不含手續費)', value: fmtUsd(s.lifetimePnlUsd), cls: cls(s.lifetimePnlUsd),
+      tip: '所有部位(含已關閉)的已實現＋未實現損益合計，來自價格變動/無常損失，不含手續費。' },
+    { label: '目前投入本金', value: fmtUsd(s.currentDepositUsd ?? 0),
+      tip: `目前現有部位的本金合計。歷來累計部署 ${fmtUsd(s.totalDepositEverUsd)}（因開關倉會重複計入，僅供參考、不用於年化計算）。` },
     { label: '部位(現有/已關閉)', value: `${s.activeCount} / ${s.closedCount}`, small: true,
       tip: `已關閉部位平均持倉 ${(s.avgHoldDays ?? 0).toFixed(1)} 天` },
   ];
   document.getElementById('strategyCards').innerHTML = cards
-    .map((c) => `<div class="card" title="${c.tip || ''}"><div class="label">${c.label} <span class="info">ⓘ</span></div>
+    .map((c) => `<div class="card" data-tip="${c.tip || ''}"><div class="label">${c.label} <span class="info">ⓘ</span></div>
       <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`)
     .join('');
 }
