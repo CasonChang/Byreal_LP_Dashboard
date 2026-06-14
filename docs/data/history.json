@@ -1,12 +1,14 @@
 {
-  "updatedAt": "2026-06-14T13:52:28.929Z",
+  "updatedAt": "2026-06-14T15:19:23.918Z",
   "equity": [
     {
       "date": "2026-06-14",
-      "liquidityUsd": 11136.666050176249,
-      "earnedUsd": 185.39603048588026,
-      "pnlUsd": 6.03347978938087,
-      "weightedApr": 11.492866074180869
+      "liquidityUsd": 11138.479526202042,
+      "lifetimeFeesUsd": 185.8400204809896,
+      "pnlUsd": 8.29094581028229,
+      "feeApr": 12.403717773728689,
+      "totalApr": 0,
+      "dailyFeeUsd": 0
     }
   ],
   "events": []
