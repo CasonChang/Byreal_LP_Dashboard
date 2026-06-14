@@ -109,6 +109,21 @@ export interface PositionMetric {
   poolTvlUsd: number;
   poolVolume24hUsd: number;
   poolFeeApr: number;
+
+  volatilityDaily: number; // 日波動度（log return std）
+  suggestions?: {
+    conservative: RangeSuggestionT;
+    balanced: RangeSuggestionT;
+    aggressive: RangeSuggestionT;
+  };
+}
+
+export interface RangeSuggestionT {
+  low: number;
+  high: number;
+  lowPct: number;
+  upPct: number;
+  stayProb: number;
 }
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'out';

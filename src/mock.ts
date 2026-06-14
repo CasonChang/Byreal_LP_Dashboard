@@ -53,6 +53,12 @@ function pos(partial: Partial<PositionMetric>): PositionMetric {
     poolTvlUsd: 1_200_000,
     poolVolume24hUsd: 3_400_000,
     poolFeeApr: 62.4,
+    volatilityDaily: 0.03,
+    suggestions: {
+      conservative: { low: 138, high: 168, lowPct: -9.2, upPct: 10.5, stayProb: 85 },
+      balanced: { low: 142, high: 164, lowPct: -6.6, upPct: 7.9, stayProb: 75 },
+      aggressive: { low: 146, high: 160, lowPct: -3.9, upPct: 5.3, stayProb: 65 },
+    },
     ...partial,
   };
 }

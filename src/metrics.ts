@@ -5,6 +5,7 @@
 import { config } from './config.ts';
 import { listPositions, getPoolDetail, type PoolDetail, type PoolMapFlat } from './byreal.ts';
 import { ticksToPriceRange } from './tick.ts';
+import { fetchDailyCloses, dailyVolatility, allSuggestions } from './kline.ts';
 import type { PortfolioSnapshot, PositionMetric, RiskLevel, ClosedPositionRow, StrategySummary } from './types.ts';
 
 function riskFromDistance(inRange: boolean, nearestPct: number): RiskLevel {
@@ -27,6 +28,12 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
   // 預先抓取每個獨特池子的詳情（含目前價格）
   const uniquePools = [...new Set(rawAll.map((r) => r.raw.poolAddress))];
   const poolDetails = new Map<string, PoolDetail | null>();
+  // 每個池子的 tokenA mint（用來查 K 線）
+  const poolTokenA = new Map<string, string>();
+  for (const { raw, poolMap } of rawAll) {
+    const a = poolMap[raw.poolAddress]?.addressA;
+    if (a && !poolTokenA.has(raw.poolAddress)) poolTokenA.set(raw.poolAddress, a);
+  }
   await Promise.all(
     uniquePools.map(async (addr) => {
       try {
@@ -34,6 +41,21 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       } catch (e) {
         console.warn(`池子詳情抓取失敗 ${addr}:`, (e as Error).message);
         poolDetails.set(addr, null);
+      }
+    }),
+  );
+
+  // 抓 K 線算波動度（給區間建議用）；失敗不影響主流程
+  const poolSigma = new Map<string, number>();
+  await Promise.all(
+    uniquePools.map(async (addr) => {
+      try {
+        const tokenA = poolTokenA.get(addr) || '';
+        const closes = await fetchDailyCloses(addr, tokenA, 30);
+        poolSigma.set(addr, dailyVolatility(closes));
+      } catch (e) {
+        console.warn(`K 線抓取失敗 ${addr}:`, (e as Error).message);
+        poolSigma.set(addr, 0);
       }
     }),
   );
@@ -126,6 +148,11 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       poolTvlUsd: detail?.tvlUsd ?? 0,
       poolVolume24hUsd: detail?.volume24hUsd ?? 0,
       poolFeeApr: detail?.feeApr ?? 0,
+      volatilityDaily: poolSigma.get(raw.poolAddress) ?? 0,
+      suggestions:
+        currentPrice > 0 && (poolSigma.get(raw.poolAddress) ?? 0) > 0
+          ? allSuggestions(currentPrice, poolSigma.get(raw.poolAddress)!)
+          : undefined,
     });
   }
 

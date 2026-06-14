@@ -46,6 +46,8 @@ const cardHtml = (c) =>
    <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`;
 
 let chart, historyData;
+let suggestStyle = 'balanced';
+let lastPositions = [];
 
 async function load() {
   const [latest, history] = await Promise.all([
@@ -79,6 +81,7 @@ function render(snap, history) {
   renderEvents(history.events || []);
   renderChart(history.equity || [], 'liquidityUsd');
   setupTabs();
+  setupStyleTabs();
 }
 
 function renderSummary(t) {
@@ -167,6 +170,7 @@ function renderClosedPage() {
 
 function renderPositions(positions) {
   const el = document.getElementById('positions');
+  lastPositions = positions;
   if (!positions.length) { el.innerHTML = '<div class="empty">目前沒有部位</div>'; return; }
 
   el.innerHTML = positions
@@ -175,6 +179,12 @@ function renderPositions(positions) {
       let pos = ((p.currentPrice - p.priceLower) / span) * 100;
       pos = Math.max(2, Math.min(98, pos));
       const markerCls = p.inRange ? '' : 'out';
+      const sg = p.suggestions ? p.suggestions[suggestStyle] : null;
+      const suggestHtml = sg
+        ? `<div class="suggest">💡 建議區間 <b>${fmtPrice(sg.low)} ~ ${fmtPrice(sg.high)}</b>
+             <span class="sg-pct">(${sg.lowPct.toFixed(1)}% / +${sg.upPct.toFixed(1)}%)</span>
+             <span class="sg-prob" data-tip="此風格的名目「在區間內時間比例」估計值。區間越寬越高、但手續費率越低。">風格在內 ~${sg.stayProb}% ⓘ</span></div>`
+        : '';
       // 上下限相對現價的差距%（下限通常為負、上限為正）
       const lowPct = p.currentPrice > 0 ? ((p.priceLower - p.currentPrice) / p.currentPrice) * 100 : 0;
       const upPct = p.currentPrice > 0 ? ((p.priceUpper - p.currentPrice) / p.currentPrice) * 100 : 0;
@@ -201,9 +211,21 @@ function renderPositions(positions) {
             <span>${fmtPrice(p.priceUpper)} <em>${sgn(upPct)}</em></span>
           </div>
         </div>
+        ${suggestHtml}
       </div>`;
     })
     .join('');
+}
+
+function setupStyleTabs() {
+  document.querySelectorAll('#styleTabs button').forEach((btn) => {
+    btn.onclick = () => {
+      document.querySelectorAll('#styleTabs button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      suggestStyle = btn.dataset.style;
+      renderPositions(lastPositions);
+    };
+  });
 }
 
 function perfMetrics(p) {
