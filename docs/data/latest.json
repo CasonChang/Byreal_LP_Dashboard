@@ -1,22 +1,22 @@
 {
-  "capturedAt": "2026-06-14T15:19:23.918Z",
+  "capturedAt": "2026-06-14T15:33:36.514Z",
   "wallets": [
     "FPa1NnUpG89LpHLnKAPrNrxksVZWrjcpNAqnXiwpoqYn"
   ],
   "totals": {
-    "liquidityUsd": 11138.479526202042,
-    "earnedUsd": 185.8400204809896,
-    "unclaimedFeeUsd": 74.32039902918962,
-    "claimedFeeUsd": 111.51962145179999,
+    "liquidityUsd": 11139.81889018862,
+    "earnedUsd": 185.88725999977407,
+    "unclaimedFeeUsd": 74.37931808993713,
+    "claimedFeeUsd": 111.5088641715,
     "depositUsd": 11316.028698596756,
-    "bonusUsd": 0.3631213888474353,
-    "pnlUsd": 8.29094581028229,
+    "bonusUsd": 0.3654153401554698,
+    "pnlUsd": 9.677549315647216,
     "positionCount": 4,
     "activeCount": 4,
     "inRangeCount": 4,
-    "weightedApr": 12.403717773728689,
-    "realApr": 19.643205733514748,
-    "totalReturnApr": 36.28419141832389
+    "weightedApr": 12.82500042314388,
+    "realApr": 19.676170160553085,
+    "totalReturnApr": 33.81323197125205
   },
   "positions": [
     {
@@ -31,42 +31,66 @@
       "upperTick": 20260,
       "priceLower": 620.2229077608716,
       "priceUpper": 758.2922707131269,
-      "currentPrice": 726.2647470505899,
+      "currentPrice": 726.632010396881,
       "inRange": true,
-      "nearestBoundaryPct": 4.409896500222941,
-      "distanceToLowerPct": 14.600989476683445,
-      "distanceToUpperPct": 4.409896500222941,
-      "rangeWidthPct": 19.010885976906387,
+      "nearestBoundaryPct": 4.3571243577547945,
+      "distanceToLowerPct": 14.644152901809198,
+      "distanceToUpperPct": 4.3571243577547945,
+      "rangeWidthPct": 19.001277259563995,
       "riskLevel": "medium",
-      "liquidityUsd": 4220.8572556413,
-      "earnedUsd": 58.8381637218,
-      "earnedPct": 1.4211983,
-      "unclaimedFeeUsd": 28.2550704232,
+      "liquidityUsd": 4221.6648355707,
+      "earnedUsd": 58.8500449213,
+      "earnedPct": 1.4214853,
+      "unclaimedFeeUsd": 28.2683633617,
       "unclaimedTokens": [
         {
           "symbol": "QQQx",
           "amount": 0.0201677,
-          "usd": 14.650018957
+          "usd": 14.658892745000001
         },
         {
           "symbol": "USDC",
-          "amount": 13.602331,
-          "usd": 13.605051466199999
+          "amount": 13.605389,
+          "usd": 13.6094706167
         }
       ],
-      "claimedFeeUsd": 30.5830932986,
+      "claimedFeeUsd": 30.581681559599996,
       "depositUsd": 4140.038932663977,
-      "realApr": 13.088068702605932,
-      "totalReturnUsd": 198.49472294214996,
-      "totalReturnApr": 44.15352904715213,
-      "ageDays": 39.634372210648145,
-      "pnlUsd": 139.65655922034995,
-      "pnlPct": 3.3733151,
-      "apr": 12.5223727,
-      "bonusUsd": 0.025243884294920926,
-      "poolTvlUsd": 373148.384164142,
-      "poolVolume24hUsd": 63759.534333298,
-      "poolFeeApr": 12.5223727
+      "realApr": 13.087454789558134,
+      "totalReturnUsd": 199.32606527054992,
+      "totalReturnApr": 44.32742355757595,
+      "ageDays": 39.64423515046296,
+      "pnlUsd": 140.47602034924992,
+      "pnlPct": 3.3931087,
+      "apr": 12.5605828,
+      "bonusUsd": 0.025255736664920925,
+      "poolTvlUsd": 373260.0394488788,
+      "poolVolume24hUsd": 63955.6273865709,
+      "poolFeeApr": 12.5605828,
+      "volatilityDaily": 0.014070902501969402,
+      "suggestions": {
+        "conservative": {
+          "low": 656.2990581000053,
+          "high": 772.6189407448383,
+          "lowPct": -9.67930827303637,
+          "upPct": 6.328778486216087,
+          "stayProb": 85
+        },
+        "balanced": {
+          "low": 673.8822961742242,
+          "high": 761.122208157849,
+          "lowPct": -7.259481204777277,
+          "upPct": 4.746583864662065,
+          "stayProb": 75
+        },
+        "aggressive": {
+          "low": 691.4655342484431,
+          "high": 749.6254755708596,
+          "lowPct": -4.839654136518185,
+          "upPct": 3.1643892431080434,
+          "stayProb": 65
+        }
+      }
     },
     {
       "positionAddress": "G6fzGAjJDegufiiyzHv4nMhqBC6jBGbUijBrXD61veLF",
@@ -80,42 +104,66 @@
       "upperTick": 16090,
       "priceLower": 337.6835924514526,
       "priceUpper": 499.740888626235,
-      "currentPrice": 406.06878624275146,
+      "currentPrice": 406.46805958212536,
       "inRange": true,
-      "nearestBoundaryPct": 16.8407905527655,
-      "distanceToLowerPct": 16.8407905527655,
-      "distanceToUpperPct": 23.06803811497236,
-      "rangeWidthPct": 39.908828667737865,
+      "nearestBoundaryPct": 16.92247779601366,
+      "distanceToLowerPct": 16.92247779601366,
+      "distanceToUpperPct": 22.94714845245158,
+      "rangeWidthPct": 39.86962624846524,
       "riskLevel": "low",
-      "liquidityUsd": 2981.836416648,
-      "earnedUsd": 56.637091300099996,
-      "earnedPct": 1.8367718000000002,
-      "unclaimedFeeUsd": 20.4254299241,
+      "liquidityUsd": 2983.0231343486,
+      "earnedUsd": 56.645083224699995,
+      "earnedPct": 1.8370309000000002,
+      "unclaimedFeeUsd": 20.437831153999998,
       "unclaimedTokens": [
         {
           "symbol": "TSLAx",
           "amount": 0.02593709,
-          "usd": 10.534349103499999
+          "usd": 10.545761423099998
         },
         {
           "symbol": "USDC",
           "amount": 9.889103,
-          "usd": 9.891080820600001
+          "usd": 9.8920697309
         }
       ],
-      "claimedFeeUsd": 36.211661375999995,
+      "claimedFeeUsd": 36.207252070699994,
       "depositUsd": 3083.5127534599,
-      "realApr": 19.768178133450938,
-      "totalReturnUsd": 11.597860933126988,
-      "totalReturnApr": 4.048028873485617,
-      "ageDays": 33.914187025462965,
-      "pnlUsd": -45.03923036697301,
-      "pnlPct": -1.4606468,
-      "apr": 5.6106584,
+      "realApr": 19.765219443413887,
+      "totalReturnUsd": 12.80056248292712,
+      "totalReturnApr": 4.466511691236471,
+      "ageDays": 33.924049965277774,
+      "pnlUsd": -43.844520741772875,
+      "pnlPct": -1.4219017,
+      "apr": 5.6112188,
       "bonusUsd": 0.013938842175,
-      "poolTvlUsd": 499113.29008794547,
+      "poolTvlUsd": 499308.5962819546,
       "poolVolume24hUsd": 38361.7937339602,
-      "poolFeeApr": 5.6106584
+      "poolFeeApr": 5.6112188,
+      "volatilityDaily": 0.023648631113503498,
+      "suggestions": {
+        "conservative": {
+          "low": 340.3447170302028,
+          "high": 449.70255278915164,
+          "lowPct": -16.267783161093035,
+          "upPct": 10.636627451483905,
+          "stayProb": 85
+        },
+        "balanced": {
+          "low": 356.87555266818345,
+          "high": 438.8939294873951,
+          "lowPct": -12.200837370819777,
+          "upPct": 7.977470588612931,
+          "stayProb": 75
+        },
+        "aggressive": {
+          "low": 373.4063883061641,
+          "high": 428.08530618563856,
+          "lowPct": -8.133891580546518,
+          "upPct": 5.318313725741953,
+          "stayProb": 65
+        }
+      }
     },
     {
       "positionAddress": "3awA2cYUejR12swLtpB6EzyZfTQZ15FT4QEU66DmMhtA",
@@ -129,42 +177,66 @@
       "upperTick": 9170,
       "priceLower": 185.8870419811501,
       "priceUpper": 250.16591032367174,
-      "currentPrice": 206.82863427314538,
+      "currentPrice": 206.93791862441267,
       "inRange": true,
-      "nearestBoundaryPct": 10.125093348699027,
-      "distanceToLowerPct": 10.125093348699027,
-      "distanceToUpperPct": 20.953228358745328,
-      "rangeWidthPct": 31.07832170744435,
+      "nearestBoundaryPct": 10.172556476451955,
+      "distanceToLowerPct": 10.172556476451955,
+      "distanceToUpperPct": 20.889352703753065,
+      "rangeWidthPct": 31.06190918020502,
       "riskLevel": "low",
-      "liquidityUsd": 2929.1763018246,
-      "earnedUsd": 69.3639014779,
-      "earnedPct": 2.2421118,
-      "unclaimedFeeUsd": 24.6390347007,
+      "liquidityUsd": 2929.7338979244,
+      "earnedUsd": 69.3681738425,
+      "earnedPct": 2.2422499,
+      "unclaimedFeeUsd": 24.6482433013,
       "unclaimedTokens": [
         {
           "symbol": "NVDAx",
           "amount": 0.06170295,
-          "usd": 12.7644892665
+          "usd": 12.77251065
         },
         {
           "symbol": "USDC",
           "amount": 11.872171,
-          "usd": 11.8745454342
+          "usd": 11.8757326513
         }
       ],
-      "claimedFeeUsd": 44.7248667772,
+      "claimedFeeUsd": 44.7199305412,
       "depositUsd": 3093.6861741419,
-      "realApr": 26.534337359536014,
-      "totalReturnUsd": -25.782061946648,
-      "totalReturnApr": -9.862621838461287,
-      "ageDays": 30.841953229166666,
-      "pnlUsd": -95.145963424548,
-      "pnlPct": -3.0754885,
-      "apr": 9.3971949,
+      "realApr": 26.52748848360294,
+      "totalReturnUsd": -25.215921117648165,
+      "totalReturnApr": -9.642967660798154,
+      "ageDays": 30.851816168981482,
+      "pnlUsd": -94.58409496014816,
+      "pnlPct": -3.0573267,
+      "apr": 9.3973396,
       "bonusUsd": 0.28427367308,
-      "poolTvlUsd": 454418.91545175,
+      "poolTvlUsd": 454448.58565739705,
       "poolVolume24hUsd": 58351.579609365,
-      "poolFeeApr": 9.3971949
+      "poolFeeApr": 9.3973396,
+      "volatilityDaily": 0.019351874804096905,
+      "suggestions": {
+        "conservative": {
+          "low": 179.39020939119627,
+          "high": 224.94988235382343,
+          "lowPct": -13.312064514969274,
+          "upPct": 8.704042182864526,
+          "stayProb": 85
+        },
+        "balanced": {
+          "low": 186.27713669950035,
+          "high": 220.44689142147072,
+          "lowPct": -9.984048386226958,
+          "upPct": 6.528031637148395,
+          "stayProb": 75
+        },
+        "aggressive": {
+          "low": 193.16406400780446,
+          "high": 215.94390048911805,
+          "lowPct": -6.656032257484637,
+          "upPct": 4.352021091432263,
+          "stayProb": 65
+        }
+      }
     },
     {
       "positionAddress": "C8kHBWRDnJSwhSorPyFxmvFxvc3rUpJUfWAtcheQVjkF",
@@ -178,54 +250,78 @@
       "upperTick": 6800,
       "priceLower": 131.3882311404305,
       "priceUpper": 197.38106260019273,
-      "currentPrice": 167.09299870258369,
+      "currentPrice": 166.8799116977611,
       "inRange": true,
-      "nearestBoundaryPct": 18.12647096693748,
-      "distanceToLowerPct": 21.3682008458689,
-      "distanceToUpperPct": 18.12647096693748,
-      "rangeWidthPct": 39.494671812806374,
+      "nearestBoundaryPct": 18.277305274269786,
+      "distanceToLowerPct": 21.267796822430103,
+      "distanceToUpperPct": 18.277305274269786,
+      "rangeWidthPct": 39.54510209669989,
       "riskLevel": "low",
-      "liquidityUsd": 1006.6095520881404,
-      "earnedUsd": 1.0008639811896127,
-      "earnedPct": 0.1002076,
-      "unclaimedFeeUsd": 1.0008639811896127,
+      "liquidityUsd": 1005.3970223449209,
+      "earnedUsd": 1.0239580112740916,
+      "earnedPct": 0.1025198,
+      "unclaimedFeeUsd": 1.02488027293714,
       "unclaimedTokens": [
         {
           "symbol": "SPCXx",
-          "amount": 0.00290583,
-          "usd": 0.4856409571896127
+          "amount": 0.00298671,
+          "usd": 0.49857142763714
         },
         {
           "symbol": "USDC",
-          "amount": 0.51512,
-          "usd": 0.515223024
+          "amount": 0.526151,
+          "usd": 0.5263088453
         }
       ],
       "claimedFeeUsd": 0,
       "depositUsd": 998.7908383309782,
-      "realApr": 25.083954370479468,
-      "totalReturnUsd": 9.82044436264297,
-      "totalReturnApr": 246.12293270617806,
-      "ageDays": 1.4581337847222222,
-      "pnlUsd": 8.819580381453358,
-      "pnlPct": 0.8830258000000001,
-      "apr": 40.777779800000005,
-      "bonusUsd": 0.0396649892975143,
-      "poolTvlUsd": 59729.27990045891,
-      "poolVolume24hUsd": 66558.8682062066,
-      "poolFeeApr": 40.777779800000005
+      "realApr": 25.49032519606832,
+      "totalReturnUsd": 8.654102679592418,
+      "totalReturnApr": 215.43450918313889,
+      "ageDays": 1.4679967245370371,
+      "pnlUsd": 7.630144668318326,
+      "pnlPct": 0.7639382,
+      "apr": 45.3268812,
+      "bonusUsd": 0.04194708823554884,
+      "poolTvlUsd": 59649.00333105819,
+      "poolVolume24hUsd": 73766.909959691,
+      "poolFeeApr": 45.3268812,
+      "volatilityDaily": 0.004476167894976924,
+      "suggestions": {
+        "conservative": {
+          "low": 161.74145386205956,
+          "high": 170.23967259033518,
+          "lowPct": -3.079135039936911,
+          "upPct": 2.0132806030356725,
+          "stayProb": 85
+        },
+        "balanced": {
+          "low": 163.02606832098493,
+          "high": 169.39973236719166,
+          "lowPct": -2.309351279952683,
+          "upPct": 1.5099604522767545,
+          "stayProb": 75
+        },
+        "aggressive": {
+          "low": 164.3106827799103,
+          "high": 168.55979214404815,
+          "lowPct": -1.5395675199684555,
+          "upPct": 1.0066403015178362,
+          "stayProb": 65
+        }
+      }
     }
   ],
   "strategy": {
-    "lifetimeFeesUsd": 414.9280647356742,
-    "lifetimePnlUsd": 255.41244005152504,
+    "lifetimeFeesUsd": 414.97530425445865,
+    "lifetimePnlUsd": 256.79904355688996,
     "totalDepositEverUsd": 50019.86577579892,
     "currentDepositUsd": 11316.028698596756,
-    "depositYears": 1769.8258680957606,
-    "feeApr": 23.444570011970438,
-    "totalReturnApr": 37.87607113622146,
+    "depositYears": 1770.131647027259,
+    "feeApr": 23.443188813180303,
+    "totalReturnApr": 37.95053034273014,
     "realizedFeesUsd": 229.08804425468458,
-    "unrealizedFeesUsd": 185.8400204809896,
+    "unrealizedFeesUsd": 185.88725999977407,
     "closedCount": 16,
     "activeCount": 4,
     "avgHoldDays": 6.829908854166667
