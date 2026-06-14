@@ -13,6 +13,14 @@ const fmtPrice = (n) => {
   return n.toPrecision(4);
 };
 const cls = (n) => (n > 0 ? 'pos-val' : n < 0 ? 'neg-val' : '');
+// CLMM 集中倍數（相對「全幅 0~∞」的資金效率）：E = 1 / (1 - (下限/上限)^(1/4))
+// 區間越窄 → 倍數越高 → 在區間內時手續費年化越高，但越容易出界
+const concFactor = (p) => {
+  const pa = p.priceLower, pb = p.priceUpper;
+  if (!pa || !pb || pb <= pa) return '—';
+  const e = 1 / (1 - Math.pow(pa / pb, 0.25));
+  return Number.isFinite(e) && e > 0 ? `${e.toFixed(1)}×` : '—';
+};
 const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '—');
 const fmtTime = (iso) =>
   new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -58,10 +66,7 @@ function renderSummary(t) {
     { label: '總倉位價值', value: fmtUsd(t.liquidityUsd) },
     { label: '實際年化(自開倉)', value: fmtPct(t.realApr ?? 0), cls: (t.realApr ?? 0) > 0 ? 'pos-val' : '' },
     { label: '累計手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val' },
-    { label: '未領手續費(可領)', value: fmtUsd(t.unclaimedFeeUsd ?? 0), cls: (t.unclaimedFeeUsd ?? 0) > 0 ? 'pos-val' : '' },
-    { label: '已領手續費', value: fmtUsd(t.claimedFeeUsd ?? 0) },
     { label: '持倉損益', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd) },
-    { label: '加權池子 APR', value: fmtPct(t.weightedApr) },
     { label: '部位 / 區間內', value: `${t.positionCount} / ${t.inRangeCount}`, small: true },
   ];
   document.getElementById('summaryCards').innerHTML = cards
@@ -97,7 +102,10 @@ function renderPositions(positions) {
           <div class="metric"><div class="k">累計手續費</div><div class="v pos-val">${fmtUsd(p.earnedUsd)}</div></div>
           <div class="metric"><div class="k">未領手續費</div><div class="v ${(p.unclaimedFeeUsd ?? 0) > 0 ? 'pos-val' : ''}">${fmtUsd(p.unclaimedFeeUsd ?? 0)}</div></div>
           <div class="metric"><div class="k">損益</div><div class="v ${cls(p.pnlUsd)}">${fmtUsd(p.pnlUsd)}</div></div>
-          <div class="metric"><div class="k">池子APR</div><div class="v">${fmtPct(p.apr)}</div></div>
+          <div class="metric"><div class="k">池子APR(全幅)</div><div class="v">${fmtPct(p.apr)}</div></div>
+          <div class="metric"><div class="k">集中倍數</div><div class="v">${concFactor(p)}</div></div>
+          <div class="metric"><div class="k">池子TVL</div><div class="v">${fmtUsd(p.poolTvlUsd ?? 0)}</div></div>
+          <div class="metric"><div class="k">24h量</div><div class="v">${fmtUsd(p.poolVolume24hUsd ?? 0)}</div></div>
           <div class="metric"><div class="k">目前價格</div><div class="v">${fmtPrice(p.currentPrice)}</div></div>
           <div class="metric"><div class="k">距邊界</div><div class="v">${p.nearestBoundaryPct >= 0 ? p.nearestBoundaryPct.toFixed(1) : '出界 ' + Math.abs(p.nearestBoundaryPct).toFixed(1)}%</div></div>
         </div>
@@ -123,8 +131,11 @@ function renderEvents(events) {
 function stripHtml(s) { return String(s || '').replace(/<\/?b>/g, ''); }
 
 const METRIC_LABEL = { liquidityUsd: '總倉位 (USD)', earnedUsd: '累計手續費 (USD)', pnlUsd: '持倉損益 (USD)', weightedApr: '加權 APR (%)' };
+const CHART_TITLE = { liquidityUsd: '總倉位', earnedUsd: '累計手續費', pnlUsd: '持倉損益', weightedApr: '加權 APR' };
 
 function renderChart(equity, metric) {
+  const titleEl = document.getElementById('chartTitle');
+  if (titleEl) titleEl.textContent = CHART_TITLE[metric] || '權益走勢';
   const ctx = document.getElementById('equityChart');
   const labels = equity.map((e) => e.date.slice(5));
   const data = equity.map((e) => e[metric]);
