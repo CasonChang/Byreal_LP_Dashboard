@@ -24,7 +24,7 @@ const concFactor = (p) => {
 const fmtAmt = (n) => (n >= 1 ? n.toLocaleString('en-US', { maximumFractionDigits: 4 }) : Number(n).toPrecision(3));
 // 一個帶 tooltip（滑鼠移過去顯示計算方式）的指標小卡
 const mtr = (k, v, tip, valCls = '') =>
-  `<div class="metric" data-tip="${tip || ''}"><div class="k">${k}${tip ? ' <span class="info">ⓘ</span>' : ''}</div><div class="v ${valCls}">${v}</div></div>`;
+  `<div class="metric"><div class="k">${k}${tip ? ` <span class="info" data-tip="${tip}">ⓘ</span>` : ''}</div><div class="v ${valCls}">${v}</div></div>`;
 const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '—');
 const fmtTime = (iso) =>
   new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -32,6 +32,11 @@ const fmtDate = (ms) =>
   ms ? new Date(ms).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', year: '2-digit', month: '2-digit', day: '2-digit' }) : '—';
 
 const RISK_LABEL = { low: '🟢 健康', medium: '🟡 偏離', high: '⚠️ 快出界', out: '🚨 已出界' };
+
+// 摘要/策略卡片 HTML（tooltip 只掛在 ⓘ 上）
+const cardHtml = (c) =>
+  `<div class="card"><div class="label">${c.label}${c.tip ? ` <span class="info" data-tip="${c.tip}">ⓘ</span>` : ''}</div>
+   <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`;
 
 let chart, historyData;
 
@@ -84,12 +89,7 @@ function renderSummary(t) {
     { label: '部位 / 區間內', value: `${t.positionCount} / ${t.inRangeCount}`, small: true,
       tip: '目前部位數 / 價格仍在區間內（持續賺手續費）的部位數。' },
   ];
-  document.getElementById('summaryCards').innerHTML = cards
-    .map(
-      (c) => `<div class="card" data-tip="${c.tip || ''}"><div class="label">${c.label} <span class="info">ⓘ</span></div>
-      <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`,
-    )
-    .join('');
+  document.getElementById('summaryCards').innerHTML = cards.map(cardHtml).join('');
 }
 
 function renderStrategy(s) {
@@ -105,15 +105,10 @@ function renderStrategy(s) {
       tip: `含已關閉 ${fmtUsd(s.realizedFeesUsd)} ＋ 現有 ${fmtUsd(s.unrealizedFeesUsd)}` },
     { label: '總損益(不含手續費)', value: fmtUsd(s.lifetimePnlUsd), cls: cls(s.lifetimePnlUsd),
       tip: '所有部位(含已關閉)的已實現＋未實現損益合計，來自價格變動/無常損失，不含手續費。' },
-    { label: '目前投入本金', value: fmtUsd(s.currentDepositUsd ?? 0),
-      tip: `目前現有部位的本金合計。歷來累計部署 ${fmtUsd(s.totalDepositEverUsd)}（因開關倉會重複計入，僅供參考、不用於年化計算）。` },
     { label: '部位(現有/已關閉)', value: `${s.activeCount} / ${s.closedCount}`, small: true,
       tip: `已關閉部位平均持倉 ${(s.avgHoldDays ?? 0).toFixed(1)} 天` },
   ];
-  document.getElementById('strategyCards').innerHTML = cards
-    .map((c) => `<div class="card" data-tip="${c.tip || ''}"><div class="label">${c.label} <span class="info">ⓘ</span></div>
-      <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`)
-    .join('');
+  document.getElementById('strategyCards').innerHTML = cards.map(cardHtml).join('');
 }
 
 function renderClosed(rows) {
@@ -144,47 +139,57 @@ function renderPositions(positions) {
       let pos = ((p.currentPrice - p.priceLower) / span) * 100;
       pos = Math.max(2, Math.min(98, pos));
       const markerCls = p.inRange ? '' : 'out';
+      // 上下限相對現價的差距%（下限通常為負、上限為正）
+      const lowPct = p.currentPrice > 0 ? ((p.priceLower - p.currentPrice) / p.currentPrice) * 100 : 0;
+      const upPct = p.currentPrice > 0 ? ((p.priceUpper - p.currentPrice) / p.currentPrice) * 100 : 0;
+      const sgn = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
       return `
       <div class="pos">
         <div class="pos-top">
-          <div>
-            <span class="pair">${p.pair}</span>
-            <span class="badge ${p.riskLevel}">${RISK_LABEL[p.riskLevel] || p.riskLevel}</span>
-          </div>
-          <div class="metric"><span class="v">${fmtUsd(p.liquidityUsd)}</span></div>
+          <span class="pair">${p.pair}</span>
+          <span class="badge ${p.riskLevel}">${RISK_LABEL[p.riskLevel] || p.riskLevel}</span>
         </div>
 
-        <div class="pos-metrics">${posMetrics(p)}</div>
+        <div class="pos-metrics">${perfMetrics(p)}</div>
+        <div class="pos-metrics pool-metrics">${poolMetrics(p)}</div>
 
         <div class="rangebar">
           <div class="track"><div class="marker ${markerCls}" style="left:${pos}%"></div></div>
-          <div class="labels"><span>${fmtPrice(p.priceLower)}</span><span>區間</span><span>${fmtPrice(p.priceUpper)}</span></div>
+          <div class="cur-row"><span class="cur" style="left:${pos}%">${fmtPrice(p.currentPrice)}</span></div>
+          <div class="labels">
+            <span>${fmtPrice(p.priceLower)} <em>${sgn(lowPct)}</em></span>
+            <span class="mid">區間</span>
+            <span>${fmtPrice(p.priceUpper)} <em>${sgn(upPct)}</em></span>
+          </div>
         </div>
       </div>`;
     })
     .join('');
 }
 
-function posMetrics(p) {
+function perfMetrics(p) {
   const ut = p.unclaimedTokens || [];
-  const unclaimedTip = ut.length
-    ? '未領明細｜' + ut.map((t) => `${t.symbol} ${fmtAmt(t.amount)}（${fmtUsd(t.usd)}）`).join('；')
-    : '目前可隨時領取的手續費（兩種代幣加總）';
+  const breakdown = ut.length ? '；未領明細｜' + ut.map((t) => `${t.symbol} ${fmtAmt(t.amount)}（${fmtUsd(t.usd)}）`).join('；') : '';
+  const feeTip = `此部位開倉至今手續費（已領 ${fmtUsd(p.claimedFeeUsd ?? 0)} ＋ 未領 ${fmtUsd(p.unclaimedFeeUsd ?? 0)}）。即使領出賣掉仍記得（鏈上累計值）${breakdown}`;
+  return [
+    mtr('倉位價值', fmtUsd(p.liquidityUsd), '此部位目前現值（兩種代幣數量 × 現價）。'),
+    mtr('投入本金', fmtUsd(p.depositUsd ?? 0), '開倉至今投入此部位的本金（含後續加倉）。'),
+    mtr('累積手續費', fmtUsd(p.earnedUsd), feeTip, 'pos-val'),
+    mtr('手續費年化', fmtPct(p.realApr ?? 0), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。', (p.realApr ?? 0) > 0 ? 'pos-val' : ''),
+    mtr('損益(不含手續費)', fmtUsd(p.pnlUsd), '代幣價格變動 / 無常損失（IL），不含手續費。', cls(p.pnlUsd)),
+    mtr('總報酬年化', fmtPct(p.totalReturnApr ?? 0), '含損益：((累計手續費 + 損益) ÷ 投入本金) 年化。', cls(p.totalReturnApr ?? 0)),
+  ].join('');
+}
+
+function poolMetrics(p) {
   const distTxt = p.nearestBoundaryPct >= 0
     ? p.nearestBoundaryPct.toFixed(1) + '%'
     : '出界 ' + Math.abs(p.nearestBoundaryPct).toFixed(1) + '%';
   return [
-    mtr('投入本金', fmtUsd(p.depositUsd ?? 0), '開倉至今投入此部位的本金（含後續加倉）。'),
-    mtr('手續費年化', fmtPct(p.realApr ?? 0), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。', (p.realApr ?? 0) > 0 ? 'pos-val' : ''),
-    mtr('總報酬年化', fmtPct(p.totalReturnApr ?? 0), '含損益：((累計手續費 + 持倉損益) ÷ 投入本金) 年化。', cls(p.totalReturnApr ?? 0)),
-    mtr('累計手續費', fmtUsd(p.earnedUsd), '此部位開倉至今的手續費（已領＋未領）。即使你領出來賣掉，這是鏈上累計值，仍會記得；只有「關閉部位」後才會從現有清單消失（策略級統計規劃中）。', 'pos-val'),
-    mtr('未領手續費', fmtUsd(p.unclaimedFeeUsd ?? 0), unclaimedTip, (p.unclaimedFeeUsd ?? 0) > 0 ? 'pos-val' : ''),
-    mtr('損益', fmtUsd(p.pnlUsd), '代幣價格變動 / 無常損失（IL），不含手續費。', cls(p.pnlUsd)),
+    mtr('池子TVL', fmtUsd(p.poolTvlUsd ?? 0), '池子總鎖倉量。'),
+    mtr('24hr量', fmtUsd(p.poolVolume24hUsd ?? 0), '池子 24 小時交易量。量 ÷ TVL = 週轉率，越高代表手續費越多。'),
     mtr('池子APR(全幅)', fmtPct(p.apr), '池子 24h 手續費 ÷ TVL 年化（全池平均的概念值，非你個人）。'),
     mtr('集中倍數', concFactor(p), '你的區間相對全幅(0~∞)的資金效率 = 1 ÷ (1 −(下限÷上限)^¼)。越高越集中，在區間內手續費率越高，但越容易出界。'),
-    mtr('池子TVL', fmtUsd(p.poolTvlUsd ?? 0), '池子總鎖倉量。'),
-    mtr('24h量', fmtUsd(p.poolVolume24hUsd ?? 0), '池子 24 小時交易量。量 ÷ TVL = 週轉率，越高代表手續費越多。'),
-    mtr('目前價格', fmtPrice(p.currentPrice), `${p.symbolA}/${p.symbolB} 目前價格。`),
     mtr('距邊界', distTxt, '目前價格距離最近區間邊界的百分比；越小越接近出界。'),
   ].join('');
 }

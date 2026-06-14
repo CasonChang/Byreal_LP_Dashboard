@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Byreal LP 績效儀表板</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-  <link rel="stylesheet" href="./styles.css?v=7" />
+  <link rel="stylesheet" href="./styles.css?v=8" />
 </head>
 <body>
   <header class="topbar">
@@ -59,6 +59,17 @@
       <div class="panel-head"><h2>近期動作紀錄</h2></div>
       <div id="events" class="events"></div>
     </section>
+
+    <section class="panel notes">
+      <div class="panel-head"><h2>注意事項</h2></div>
+      <ul>
+        <li>年化採「資金×時間加權」計算。若部位中途<b>加倉</b>，年化會有些微誤差（後加的資金會被當成全程在場而略為低估）。<b>若要投入大筆新資金，建議關單重開</b>，以維持年化計算準確。</li>
+        <li>「損益 / 總損益」僅反映代幣價格變動與無常損失（IL），<b>不含手續費</b>。</li>
+        <li>超短持倉（如數十分鐘）的「年化」是把瞬間速率外推一整年，數字會偏大，僅供參考。</li>
+        <li>調倉（改區間）在 CLMM 等於「關舊單、開新單」，因此每次調倉都會在歷史中新增一筆已關閉部位。</li>
+        <li>所有資料為唯讀查詢，不涉及任何錢包授權。</li>
+      </ul>
+    </section>
   </main>
 
   <footer class="foot">
@@ -67,6 +78,6 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="./app.js?v=7"></script>
+  <script src="./app.js?v=8"></script>
 </body>
 </html>

@@ -93,8 +93,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
 .badge.out { background: rgba(248,113,113,.18); color: var(--red); }
 
 .pos-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(95px,1fr)); gap: 10px; margin: 14px 0; }
+.pos-metrics.pool-metrics { margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--border); }
 .metric .k { color: var(--muted); font-size: 12px; }
 .metric .v { font-size: 15px; font-weight: 600; }
+.info[data-tip] { cursor: help; }
+.info[data-tip]:hover { color: var(--accent); opacity: 1; }
 
 .rangebar { margin-top: 6px; }
 .rangebar .track {
@@ -107,7 +110,11 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
   box-shadow: 0 0 6px var(--accent);
 }
 .rangebar .marker.out { background: var(--red); box-shadow: 0 0 6px var(--red); }
-.rangebar .labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 5px; font-family: ui-monospace, monospace; }
+.rangebar .cur-row { position: relative; height: 16px; margin-top: 3px; }
+.rangebar .cur { position: absolute; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: var(--accent); white-space: nowrap; font-family: ui-monospace, monospace; }
+.rangebar .labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 2px; font-family: ui-monospace, monospace; }
+.rangebar .labels em { font-style: normal; color: var(--muted); opacity: .8; font-size: 10px; margin-left: 2px; }
+.rangebar .labels .mid { opacity: .6; }
 
 .events { display: grid; gap: 8px; }
 .evt { display: flex; gap: 10px; align-items: baseline; padding: 9px 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; }
@@ -124,6 +131,10 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
 .ct-row:not(.ct-head):nth-child(even) { background: var(--panel-2); border-radius: 8px; }
 .ct-head { color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--border); }
 .ct-row .pair-cell { font-weight: 600; }
+
+.panel.notes ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.panel.notes li { margin-bottom: 6px; }
+.panel.notes b { color: var(--text); }
 
 .empty { color: var(--muted); text-align: center; padding: 24px; }
 
