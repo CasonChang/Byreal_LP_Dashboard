@@ -21,6 +21,10 @@ const concFactor = (p) => {
   const e = 1 / (1 - Math.pow(pa / pb, 0.25));
   return Number.isFinite(e) && e > 0 ? `${e.toFixed(1)}×` : '—';
 };
+const fmtAmt = (n) => (n >= 1 ? n.toLocaleString('en-US', { maximumFractionDigits: 4 }) : Number(n).toPrecision(3));
+// 一個帶 tooltip（滑鼠移過去顯示計算方式）的指標小卡
+const mtr = (k, v, tip, valCls = '') =>
+  `<div class="metric" title="${tip || ''}"><div class="k">${k}${tip ? ' <span class="info">ⓘ</span>' : ''}</div><div class="v ${valCls}">${v}</div></div>`;
 const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '—');
 const fmtTime = (iso) =>
   new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -63,15 +67,22 @@ function render(snap, history) {
 
 function renderSummary(t) {
   const cards = [
-    { label: '總倉位價值', value: fmtUsd(t.liquidityUsd) },
-    { label: '實際年化(自開倉)', value: fmtPct(t.realApr ?? 0), cls: (t.realApr ?? 0) > 0 ? 'pos-val' : '' },
-    { label: '累計手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val' },
-    { label: '持倉損益', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd) },
-    { label: '部位 / 區間內', value: `${t.positionCount} / ${t.inRangeCount}`, small: true },
+    { label: '總倉位價值', value: fmtUsd(t.liquidityUsd),
+      tip: '目前所有部位的現值總和（部位內兩種代幣數量 × 現價）。' },
+    { label: '手續費年化', value: fmtPct(t.realApr ?? 0), cls: (t.realApr ?? 0) > 0 ? 'pos-val' : '',
+      tip: '只算手續費：Σ(累計手續費) ÷ 投入本金，再依持倉時間換算成一年。不含價格漲跌。' },
+    { label: '總報酬年化', value: fmtPct(t.totalReturnApr ?? 0), cls: cls(t.totalReturnApr ?? 0),
+      tip: '含手續費＋持倉損益：Σ(累計手續費 + 持倉損益) ÷ 投入本金，年化。' },
+    { label: '累計手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val',
+      tip: '開倉至今賺到的手續費總額（已領＋未領）。註：目前只統計「現有部位」，已關閉的部位尚未納入（規劃中）。' },
+    { label: '持倉損益', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd),
+      tip: '部位現值相對投入本金的變化，主要來自代幣價格變動與無常損失（IL）。不含手續費。' },
+    { label: '部位 / 區間內', value: `${t.positionCount} / ${t.inRangeCount}`, small: true,
+      tip: '目前部位數 / 價格仍在區間內（持續賺手續費）的部位數。' },
   ];
   document.getElementById('summaryCards').innerHTML = cards
     .map(
-      (c) => `<div class="card"><div class="label">${c.label}</div>
+      (c) => `<div class="card" title="${c.tip || ''}"><div class="label">${c.label} <span class="info">ⓘ</span></div>
       <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`,
     )
     .join('');
@@ -97,18 +108,7 @@ function renderPositions(positions) {
           <div class="metric"><span class="v">${fmtUsd(p.liquidityUsd)}</span></div>
         </div>
 
-        <div class="pos-metrics">
-          <div class="metric"><div class="k">實際年化</div><div class="v ${(p.realApr ?? 0) > 0 ? 'pos-val' : ''}">${fmtPct(p.realApr ?? 0)}</div></div>
-          <div class="metric"><div class="k">累計手續費</div><div class="v pos-val">${fmtUsd(p.earnedUsd)}</div></div>
-          <div class="metric"><div class="k">未領手續費</div><div class="v ${(p.unclaimedFeeUsd ?? 0) > 0 ? 'pos-val' : ''}">${fmtUsd(p.unclaimedFeeUsd ?? 0)}</div></div>
-          <div class="metric"><div class="k">損益</div><div class="v ${cls(p.pnlUsd)}">${fmtUsd(p.pnlUsd)}</div></div>
-          <div class="metric"><div class="k">池子APR(全幅)</div><div class="v">${fmtPct(p.apr)}</div></div>
-          <div class="metric"><div class="k">集中倍數</div><div class="v">${concFactor(p)}</div></div>
-          <div class="metric"><div class="k">池子TVL</div><div class="v">${fmtUsd(p.poolTvlUsd ?? 0)}</div></div>
-          <div class="metric"><div class="k">24h量</div><div class="v">${fmtUsd(p.poolVolume24hUsd ?? 0)}</div></div>
-          <div class="metric"><div class="k">目前價格</div><div class="v">${fmtPrice(p.currentPrice)}</div></div>
-          <div class="metric"><div class="k">距邊界</div><div class="v">${p.nearestBoundaryPct >= 0 ? p.nearestBoundaryPct.toFixed(1) : '出界 ' + Math.abs(p.nearestBoundaryPct).toFixed(1)}%</div></div>
-        </div>
+        <div class="pos-metrics">${posMetrics(p)}</div>
 
         <div class="rangebar">
           <div class="track"><div class="marker ${markerCls}" style="left:${pos}%"></div></div>
@@ -117,6 +117,30 @@ function renderPositions(positions) {
       </div>`;
     })
     .join('');
+}
+
+function posMetrics(p) {
+  const ut = p.unclaimedTokens || [];
+  const unclaimedTip = ut.length
+    ? '未領明細｜' + ut.map((t) => `${t.symbol} ${fmtAmt(t.amount)}（${fmtUsd(t.usd)}）`).join('；')
+    : '目前可隨時領取的手續費（兩種代幣加總）';
+  const distTxt = p.nearestBoundaryPct >= 0
+    ? p.nearestBoundaryPct.toFixed(1) + '%'
+    : '出界 ' + Math.abs(p.nearestBoundaryPct).toFixed(1) + '%';
+  return [
+    mtr('投入本金', fmtUsd(p.depositUsd ?? 0), '開倉至今投入此部位的本金（含後續加倉）。'),
+    mtr('手續費年化', fmtPct(p.realApr ?? 0), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。', (p.realApr ?? 0) > 0 ? 'pos-val' : ''),
+    mtr('總報酬年化', fmtPct(p.totalReturnApr ?? 0), '含損益：((累計手續費 + 持倉損益) ÷ 投入本金) 年化。', cls(p.totalReturnApr ?? 0)),
+    mtr('累計手續費', fmtUsd(p.earnedUsd), '此部位開倉至今的手續費（已領＋未領）。即使你領出來賣掉，這是鏈上累計值，仍會記得；只有「關閉部位」後才會從現有清單消失（策略級統計規劃中）。', 'pos-val'),
+    mtr('未領手續費', fmtUsd(p.unclaimedFeeUsd ?? 0), unclaimedTip, (p.unclaimedFeeUsd ?? 0) > 0 ? 'pos-val' : ''),
+    mtr('損益', fmtUsd(p.pnlUsd), '代幣價格變動 / 無常損失（IL），不含手續費。', cls(p.pnlUsd)),
+    mtr('池子APR(全幅)', fmtPct(p.apr), '池子 24h 手續費 ÷ TVL 年化（全池平均的概念值，非你個人）。'),
+    mtr('集中倍數', concFactor(p), '你的區間相對全幅(0~∞)的資金效率 = 1 ÷ (1 −(下限÷上限)^¼)。越高越集中，在區間內手續費率越高，但越容易出界。'),
+    mtr('池子TVL', fmtUsd(p.poolTvlUsd ?? 0), '池子總鎖倉量。'),
+    mtr('24h量', fmtUsd(p.poolVolume24hUsd ?? 0), '池子 24 小時交易量。量 ÷ TVL = 週轉率，越高代表手續費越多。'),
+    mtr('目前價格', fmtPrice(p.currentPrice), `${p.symbolA}/${p.symbolB} 目前價格。`),
+    mtr('距邊界', distTxt, '目前價格距離最近區間邊界的百分比；越小越接近出界。'),
+  ].join('');
 }
 
 function renderEvents(events) {

@@ -65,19 +65,25 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       ? Math.min(distanceToLowerPct, distanceToUpperPct)
       : -Math.min(Math.abs(distanceToLowerPct), Math.abs(distanceToUpperPct));
 
-    // 未領手續費（精確）：unclaimedData 各 token amount × price 加總
-    const unclaimedFee = (raw.unclaimedData || []).reduce(
-      (s, t) => s + parseFloat(t.amount || '0') * parseFloat(t.price || '0'),
-      0,
-    );
+    // 未領手續費（精確）：unclaimedData 各 token amount × price 加總，並保留每 token 明細
+    const unclaimedTokens = (raw.unclaimedData || []).map((t) => ({
+      symbol: t.tokenSymbol || '',
+      amount: parseFloat(t.amount || '0'),
+      usd: parseFloat(t.amount || '0') * parseFloat(t.price || '0'),
+    }));
+    const unclaimedFee = unclaimedTokens.reduce((s, t) => s + t.usd, 0);
     const earnedUsdVal = parseFloat(raw.earnedUsd || '0');
+    const pnlUsdVal = parseFloat(raw.pnlUsd || '0');
     const depositUsd = parseFloat(raw.totalDeposit || '0');
-    // 部位存在時間 → 自開倉的實際年化
+    // 部位存在時間 → 年化
     const ageMs = raw.positionAgeMs || (raw.openTime ? Date.now() - raw.openTime : 0);
     const ageDays = ageMs > 0 ? ageMs / 86_400_000 : 0;
     const YEAR_MS = 365 * 86_400_000;
-    const realApr =
-      ageMs > 0 && depositUsd > 0 ? (earnedUsdVal / depositUsd) * (YEAR_MS / ageMs) * 100 : 0;
+    const annualize = (value: number) =>
+      ageMs > 0 && depositUsd > 0 ? (value / depositUsd) * (YEAR_MS / ageMs) * 100 : 0;
+    const realApr = annualize(earnedUsdVal); // 只含手續費
+    const totalReturnUsd = earnedUsdVal + pnlUsdVal; // 手續費 + 損益
+    const totalReturnApr = annualize(totalReturnUsd);
 
     positions.push({
       positionAddress: raw.positionAddress,
@@ -102,9 +108,12 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       earnedUsd: parseFloat(raw.earnedUsd || '0'),
       earnedPct: parseFloat(raw.earnedUsdPercent || '0') * 100,
       unclaimedFeeUsd: unclaimedFee,
+      unclaimedTokens,
       claimedFeeUsd: Math.max(0, earnedUsdVal - unclaimedFee),
       depositUsd,
       realApr,
+      totalReturnUsd,
+      totalReturnApr,
       ageDays,
       pnlUsd: parseFloat(raw.pnlUsd || '0'),
       pnlPct: parseFloat(raw.pnlUsdPercent || '0') * 100,
@@ -123,9 +132,11 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
   const totalLiquidity = sum(positions.map((p) => p.liquidityUsd));
   const totalDeposit = sum(positions.map((p) => p.depositUsd));
   const totalEarned = sum(positions.map((p) => p.earnedUsd));
-  // 整體實際年化：以本金加權各部位的實際年化
+  // 整體年化：以本金加權各部位的年化
   const realApr =
     totalDeposit > 0 ? sum(positions.map((p) => p.realApr * p.depositUsd)) / totalDeposit : 0;
+  const totalReturnApr =
+    totalDeposit > 0 ? sum(positions.map((p) => p.totalReturnApr * p.depositUsd)) / totalDeposit : 0;
   const totals = {
     liquidityUsd: totalLiquidity,
     earnedUsd: totalEarned,
@@ -142,6 +153,7 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
         ? sum(positions.map((p) => p.apr * p.liquidityUsd)) / totalLiquidity
         : 0,
     realApr,
+    totalReturnApr,
   };
 
   return {

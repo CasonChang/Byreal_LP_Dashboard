@@ -93,9 +93,13 @@ export interface PositionMetric {
   earnedUsd: number; // 累計手續費（lifetime）
   earnedPct: number;
   unclaimedFeeUsd: number; // 目前未領取手續費（可領）
+  /** 未領手續費的每種 token 明細（顆數 + USD） */
+  unclaimedTokens: Array<{ symbol: string; amount: number; usd: number }>;
   claimedFeeUsd: number; // 已領取手續費（= 累計 − 未領）
   depositUsd: number; // 投入本金
-  realApr: number; // 自開倉的實際年化（由累計手續費 / 本金 / 持倉時間推算）
+  realApr: number; // 自開倉的實際年化（只含手續費：累計手續費 / 本金 / 持倉時間）
+  totalReturnUsd: number; // 總報酬 = 累計手續費 + 持倉損益
+  totalReturnApr: number; // 總報酬年化（含手續費+損益）
   ageDays: number; // 部位存在天數
   pnlUsd: number;
   pnlPct: number;
@@ -124,7 +128,8 @@ export interface PortfolioSnapshot {
     activeCount: number;
     inRangeCount: number;
     weightedApr: number; // 加權池子預估 APR
-    realApr: number; // 整體實際年化（累計手續費 / 本金 年化）
+    realApr: number; // 整體實際年化（只含手續費：累計手續費 / 本金 年化）
+    totalReturnApr: number; // 整體總報酬年化（含手續費+損益）
   };
   positions: PositionMetric[];
 }

@@ -36,9 +36,15 @@ function pos(partial: Partial<PositionMetric>): PositionMetric {
     earnedUsd: 42.5,
     earnedPct: 0.85,
     unclaimedFeeUsd: 18.3,
+    unclaimedTokens: [
+      { symbol: 'USDC', amount: 9.1, usd: 9.1 },
+      { symbol: 'SOL', amount: 0.06, usd: 9.2 },
+    ],
     claimedFeeUsd: 24.2,
     depositUsd: 5100,
     realApr: 31.5,
+    totalReturnUsd: 4.5,
+    totalReturnApr: 3.2,
     ageDays: 12,
     pnlUsd: -38,
     pnlPct: -0.76,
@@ -74,6 +80,7 @@ const snap: PortfolioSnapshot = {
     inRangeCount: positions.filter((p) => p.inRange).length,
     weightedApr: positions.reduce((a, p) => a + p.apr * p.liquidityUsd, 0) / totalLiq,
     realApr: positions.reduce((a, p) => a + p.realApr * p.depositUsd, 0) / positions.reduce((a, p) => a + p.depositUsd, 0),
+    totalReturnApr: positions.reduce((a, p) => a + p.totalReturnApr * p.depositUsd, 0) / positions.reduce((a, p) => a + p.depositUsd, 0),
   },
   positions,
 };
