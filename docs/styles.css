@@ -106,6 +106,15 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
 .foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; max-width: 1100px; margin: 0 auto; padding: 18px 24px 40px; color: var(--muted); font-size: 12px; }
 
+.panel.strategy { border-color: #2f4a78; background: linear-gradient(180deg, #16213c, var(--panel)); }
+.panel.strategy .cards { margin-bottom: 0; }
+
+.closed-table { display: flex; flex-direction: column; gap: 2px; overflow-x: auto; }
+.ct-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr .8fr 1fr; gap: 8px; padding: 9px 12px; align-items: center; font-size: 13px; min-width: 560px; }
+.ct-row:not(.ct-head):nth-child(even) { background: var(--panel-2); border-radius: 8px; }
+.ct-head { color: var(--muted); font-size: 12px; border-bottom: 1px solid var(--border); }
+.ct-row .pair-cell { font-weight: 600; }
+
 .empty { color: var(--muted); text-align: center; padding: 24px; }
 
 @media (max-width: 560px) {

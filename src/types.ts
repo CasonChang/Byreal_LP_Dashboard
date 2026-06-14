@@ -113,6 +113,34 @@ export interface PositionMetric {
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'out';
 
+/** 已關閉部位的歷史紀錄列 */
+export interface ClosedPositionRow {
+  positionAddress: string;
+  pair: string;
+  depositUsd: number;
+  earnedUsd: number;
+  pnlUsd: number;
+  ageDays: number;
+  openTime: number;
+  feeApr: number; // 此部位生命期內 (手續費/本金) 年化
+  totalReturnApr: number; // (手續費+損益)/本金 年化
+}
+
+/** 策略級總覽：把「現有 + 已關閉」所有部位以「資金×時間」加權彙整 */
+export interface StrategySummary {
+  lifetimeFeesUsd: number; // 累計手續費（含已關閉）
+  lifetimePnlUsd: number; // 累計損益（含已關閉）
+  totalDepositEverUsd: number; // 歷來總投入本金
+  depositYears: number; // Σ(本金 × 持倉年數)，年化的分母
+  feeApr: number; // 策略手續費年化 = 累計手續費 / depositYears
+  totalReturnApr: number; // 策略總報酬年化 = (手續費+損益) / depositYears
+  realizedFeesUsd: number; // 已關閉部位的手續費
+  unrealizedFeesUsd: number; // 現有部位的累計手續費
+  closedCount: number;
+  activeCount: number;
+  avgHoldDays: number; // 已關閉部位的平均持倉天數
+}
+
 export interface PortfolioSnapshot {
   capturedAt: string; // ISO
   wallets: string[];
@@ -132,6 +160,8 @@ export interface PortfolioSnapshot {
     totalReturnApr: number; // 整體總報酬年化（含手續費+損益）
   };
   positions: PositionMetric[];
+  strategy?: StrategySummary; // 策略級總覽（含已關閉部位）
+  closedPositions?: ClosedPositionRow[]; // 已關閉部位歷史
 }
 
 export type EventType =

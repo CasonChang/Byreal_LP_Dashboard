@@ -5,7 +5,7 @@
 import { config } from './config.ts';
 import { listPositions, getPoolDetail, type PoolDetail, type PoolMapFlat } from './byreal.ts';
 import { ticksToPriceRange } from './tick.ts';
-import type { PortfolioSnapshot, PositionMetric, RiskLevel } from './types.ts';
+import type { PortfolioSnapshot, PositionMetric, RiskLevel, ClosedPositionRow, StrategySummary } from './types.ts';
 
 function riskFromDistance(inRange: boolean, nearestPct: number): RiskLevel {
   if (!inRange) return 'out';
@@ -156,11 +156,69 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
     totalReturnApr,
   };
 
+  // ===== 策略級總覽（含已關閉部位）=====
+  const closedPositions: ClosedPositionRow[] = [];
+  for (const wallet of wallets) {
+    const { positions: closedRaw, poolMap } = await listPositions(wallet, 1);
+    for (const raw of closedRaw) {
+      const pm = poolMap[raw.poolAddress];
+      const pair = pm?.symbolA && pm?.symbolB ? `${pm.symbolA}/${pm.symbolB}` : raw.poolAddress.slice(0, 6);
+      const dUsd = parseFloat(raw.totalDeposit || '0');
+      const eUsd = parseFloat(raw.earnedUsd || '0');
+      const plUsd = parseFloat(raw.pnlUsd || '0');
+      const ageMs = raw.positionAgeMs || 0;
+      const ageDays = ageMs > 0 ? ageMs / 86_400_000 : 0;
+      const annualFactor = ageMs > 0 ? (365 * 86_400_000) / ageMs : 0;
+      closedPositions.push({
+        positionAddress: raw.positionAddress,
+        pair,
+        depositUsd: dUsd,
+        earnedUsd: eUsd,
+        pnlUsd: plUsd,
+        ageDays,
+        openTime: raw.openTime || 0,
+        feeApr: dUsd > 0 && annualFactor > 0 ? (eUsd / dUsd) * annualFactor * 100 : 0,
+        totalReturnApr: dUsd > 0 && annualFactor > 0 ? ((eUsd + plUsd) / dUsd) * annualFactor * 100 : 0,
+      });
+    }
+  }
+  closedPositions.sort((a, b) => b.openTime - a.openTime);
+
+  // 資金 × 時間 加權（自動處理不同大小、不同持倉時間、開關倉）
+  const yearsOf = (days: number) => days / 365;
+  const depositYears =
+    sum(positions.map((p) => p.depositUsd * yearsOf(p.ageDays))) +
+    sum(closedPositions.map((r) => r.depositUsd * yearsOf(r.ageDays)));
+  const realizedFees = sum(closedPositions.map((r) => r.earnedUsd));
+  const unrealizedFees = sum(positions.map((p) => p.earnedUsd));
+  const lifetimeFees = realizedFees + unrealizedFees;
+  const lifetimePnl = sum(positions.map((p) => p.pnlUsd)) + sum(closedPositions.map((r) => r.pnlUsd));
+  const totalDepositEver =
+    sum(positions.map((p) => p.depositUsd)) + sum(closedPositions.map((r) => r.depositUsd));
+
+  const strategy: StrategySummary = {
+    lifetimeFeesUsd: lifetimeFees,
+    lifetimePnlUsd: lifetimePnl,
+    totalDepositEverUsd: totalDepositEver,
+    depositYears,
+    feeApr: depositYears > 0 ? (lifetimeFees / depositYears) * 100 : 0,
+    totalReturnApr: depositYears > 0 ? ((lifetimeFees + lifetimePnl) / depositYears) * 100 : 0,
+    realizedFeesUsd: realizedFees,
+    unrealizedFeesUsd: unrealizedFees,
+    closedCount: closedPositions.length,
+    activeCount: positions.length,
+    avgHoldDays: closedPositions.length
+      ? sum(closedPositions.map((r) => r.ageDays)) / closedPositions.length
+      : 0,
+  };
+
   return {
     capturedAt: new Date().toISOString(),
     wallets,
     totals,
     positions,
+    strategy,
+    closedPositions,
   };
 }
 

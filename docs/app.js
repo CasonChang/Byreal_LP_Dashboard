@@ -28,6 +28,8 @@ const mtr = (k, v, tip, valCls = '') =>
 const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '—');
 const fmtTime = (iso) =>
   new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+const fmtDate = (ms) =>
+  ms ? new Date(ms).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei', year: '2-digit', month: '2-digit', day: '2-digit' }) : '—';
 
 const RISK_LABEL = { low: '🟢 健康', medium: '🟡 偏離', high: '⚠️ 快出界', out: '🚨 已出界' };
 
@@ -59,7 +61,9 @@ function render(snap, history) {
   document.getElementById('updatedAt').textContent = '更新於 ' + fmtTime(snap.capturedAt);
 
   renderSummary(snap.totals);
+  renderStrategy(snap.strategy);
   renderPositions(snap.positions || []);
+  renderClosed(snap.closedPositions || []);
   renderEvents(history.events || []);
   renderChart(history.equity || [], 'liquidityUsd');
   setupTabs();
@@ -86,6 +90,48 @@ function renderSummary(t) {
       <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`,
     )
     .join('');
+}
+
+function renderStrategy(s) {
+  const panel = document.getElementById('strategyPanel');
+  if (!s) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  const cards = [
+    { label: '策略手續費年化', value: fmtPct(s.feeApr), cls: s.feeApr > 0 ? 'pos-val' : '',
+      tip: '資金×時間加權：累計手續費(含已關閉) ÷ Σ(本金×持倉年數)。把每一塊錢、每一天的手續費績效平均，開倉/關倉/加減倉都正確納入。' },
+    { label: '策略總報酬年化', value: fmtPct(s.totalReturnApr), cls: cls(s.totalReturnApr),
+      tip: '含損益：(累計手續費 + 累計損益) ÷ Σ(本金×持倉年數)。' },
+    { label: '累計手續費', value: fmtUsd(s.lifetimeFeesUsd), cls: 'pos-val',
+      tip: `含已關閉 ${fmtUsd(s.realizedFeesUsd)} ＋ 現有 ${fmtUsd(s.unrealizedFeesUsd)}` },
+    { label: '累計損益', value: fmtUsd(s.lifetimePnlUsd), cls: cls(s.lifetimePnlUsd),
+      tip: '所有部位(含已關閉)的價格變動/無常損失合計，不含手續費。' },
+    { label: '歷來投入本金', value: fmtUsd(s.totalDepositEverUsd),
+      tip: '所有部位(含已關閉)曾投入的本金總額。' },
+    { label: '部位(現有/已關閉)', value: `${s.activeCount} / ${s.closedCount}`, small: true,
+      tip: `已關閉部位平均持倉 ${(s.avgHoldDays ?? 0).toFixed(1)} 天` },
+  ];
+  document.getElementById('strategyCards').innerHTML = cards
+    .map((c) => `<div class="card" title="${c.tip || ''}"><div class="label">${c.label} <span class="info">ⓘ</span></div>
+      <div class="value ${c.small ? 'small' : ''} ${c.cls || ''}">${c.value}</div></div>`)
+    .join('');
+}
+
+function renderClosed(rows) {
+  const panel = document.getElementById('closedPanel');
+  if (!rows || !rows.length) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  document.getElementById('closedTitle').textContent = `已關閉部位歷史（${rows.length} 筆）`;
+  const head = `<div class="ct-row ct-head"><span>交易對</span><span>本金</span><span>手續費</span><span>損益</span><span>手續費年化</span><span>持倉</span><span>開倉日</span></div>`;
+  const body = rows.map((r) => `<div class="ct-row">
+    <span class="pair-cell">${r.pair}</span>
+    <span>${fmtUsd(r.depositUsd)}</span>
+    <span class="pos-val">${fmtUsd(r.earnedUsd)}</span>
+    <span class="${cls(r.pnlUsd)}">${fmtUsd(r.pnlUsd)}</span>
+    <span>${fmtPct(r.feeApr)}</span>
+    <span>${(r.ageDays ?? 0).toFixed(1)}天</span>
+    <span>${fmtDate(r.openTime)}</span>
+  </div>`).join('');
+  document.getElementById('closedPositions').innerHTML = head + body;
 }
 
 function renderPositions(positions) {

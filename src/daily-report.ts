@@ -65,6 +65,12 @@ async function main() {
   lines.push(deltaLine('📈 持倉損益(PnL)', summary.pnlUsd, last?.pnlUsd));
   lines.push(`⚡ 加權池子 APR：${pct(summary.weightedApr)}`);
   lines.push(`📍 部位：${summary.positionCount} 個，區間內 ${summary.inRangeCount} 個`);
+  if (snap.strategy) {
+    lines.push('');
+    lines.push('<b>策略總覽（含已關閉）</b>');
+    lines.push(`🏆 手續費年化 ${pct(snap.strategy.feeApr)}｜總報酬年化 ${pct(snap.strategy.totalReturnApr)}`);
+    lines.push(`📚 累計手續費 ${usd(snap.strategy.lifetimeFeesUsd)}（已關閉 ${snap.strategy.closedCount} 筆 + 現有 ${snap.strategy.activeCount} 筆）`);
+  }
   lines.push('');
 
   // 各部位明細

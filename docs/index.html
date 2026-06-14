@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Byreal LP 績效儀表板</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-  <link rel="stylesheet" href="./styles.css?v=5" />
+  <link rel="stylesheet" href="./styles.css?v=6" />
 </head>
 <body>
   <header class="topbar">
@@ -24,6 +24,11 @@
 
   <main id="app">
     <section class="cards" id="summaryCards"></section>
+
+    <section class="panel strategy" id="strategyPanel" style="display:none">
+      <div class="panel-head"><h2>策略總覽（現有 + 已關閉，資金×時間加權）</h2></div>
+      <div class="cards" id="strategyCards"></div>
+    </section>
 
     <section class="panel">
       <div class="panel-head">
@@ -45,6 +50,11 @@
       <div id="positions" class="positions"></div>
     </section>
 
+    <section class="panel" id="closedPanel" style="display:none">
+      <div class="panel-head"><h2 id="closedTitle">已關閉部位歷史</h2></div>
+      <div id="closedPositions" class="closed-table"></div>
+    </section>
+
     <section class="panel">
       <div class="panel-head"><h2>近期動作紀錄</h2></div>
       <div id="events" class="events"></div>
@@ -57,6 +67,6 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="./app.js?v=5"></script>
+  <script src="./app.js?v=6"></script>
 </body>
 </html>
