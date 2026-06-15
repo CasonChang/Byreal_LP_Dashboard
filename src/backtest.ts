@@ -21,10 +21,11 @@ interface Bar { date: string; close: number; volume: number; }
 
 async function fetchStooq(sym: string, d1: string, d2: string): Promise<Bar[]> {
   const url = `https://stooq.com/q/d/l/?s=${sym}&d1=${d1}&d2=${d2}&i=d`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36' } });
   if (!res.ok) throw new Error(`stooq ${res.status}`);
   const text = await res.text();
-  const lines = text.trim().split('\n');
+  if (!/^Date,/i.test(text.trim())) { console.log(`  (Stooq ${sym} 回傳非預期: ${text.slice(0, 60).replace(/\n/g, ' ')})`); return []; }
+  const lines = text.trim().split(/\r?\n/);
   const bars: Bar[] = [];
   for (let i = 1; i < lines.length; i++) {
     const [date, , , , c, v] = lines[i].split(',');
