@@ -1,32 +1,49 @@
 /**
- * 回測引擎（在 GitHub Actions 上跑，可連 Byreal）。
- * 用各池近 ~180 天日 K 線，模擬不同「區間寬度 / 持有期 / 是否波動率擇時」的：
- *   淨報酬、手續費、無常損失(IL)、在區間內時間比例、調倉次數，並與 HODL 比較。
+ * 回測引擎（在 GitHub Actions 上跑）。
+ * 為了涵蓋「一輪牛熊」，對應的 xStocks 改用底層美股的多年歷史（Stooq 免費日線，含 2022 熊市）；
+ * 找不到底層的（如 SPCX）退回 Byreal 近 180 天 K 線。
  *
- * 重要假設（誠實揭露）：
- * - CLMM 部位價值、IL 用標準公式精算（完全來自價格）。
- * - 手續費無歷史流動性分布，故用「你該池目前的實際手續費年化 + 區間寬度」當錨點，
- *   依『費率 ∝ 1/區間寬度（在區間內時）』外推，再乘當日成交量/平均量。屬近似。
- * - regime 濾網為「反應式」：波動度升高後才離場，非預測，且假設當日完美成交（偏樂觀）。
+ * 區間採「自適應」：每次開倉用當下 30 日波動度 σ 設寬度（z×σ×√持有天數，下限×1.3、上限×0.85）。
+ *
+ * 假設揭露：CLMM 部位價值 / IL 用標準公式精算（純價格）。手續費無歷史流動性分布，
+ * 以「你該池目前實際手續費年化 + 區間寬度」為錨點，依『費率 ∝ 1/區間寬度』外推，再乘當日量/均量。屬近似。
  */
 
 import { config, assertConfig } from './config.ts';
 import { listPositions, getPoolDetail } from './byreal.ts';
 import { ticksToPriceRange } from './tick.ts';
-import { fetchDailyBars, dailyVolatility, rollingVolatility } from './kline.ts';
+import { fetchDailyBars, rollingVolatility } from './kline.ts';
 
 const CAPITAL = 10000;
+const STOOQ: Record<string, string> = { QQQx: 'qqq.us', TSLAx: 'tsla.us', NVDAx: 'nvda.us', AAPLx: 'aapl.us', MSFTx: 'msft.us', GOOGLx: 'googl.us', AMZNx: 'amzn.us', METAx: 'meta.us' };
+
+interface Bar { date: string; close: number; volume: number; }
+
+async function fetchStooq(sym: string, d1: string, d2: string): Promise<Bar[]> {
+  const url = `https://stooq.com/q/d/l/?s=${sym}&d1=${d1}&d2=${d2}&i=d`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`stooq ${res.status}`);
+  const text = await res.text();
+  const lines = text.trim().split('\n');
+  const bars: Bar[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const [date, , , , c, v] = lines[i].split(',');
+    const close = parseFloat(c), vol = parseFloat(v || '0');
+    if (date && close > 0) bars.push({ date, close, volume: Number.isFinite(vol) ? vol : 0 });
+  }
+  return bars;
+}
 
 function lFromCapital(C: number, p: number, pa: number, pb: number): number {
   const sp = Math.sqrt(p), spa = Math.sqrt(pa), spb = Math.sqrt(pb);
-  const denom = 2 * sp - p / spb - spa; // value per unit L when in range
+  const denom = 2 * sp - p / spb - spa;
   return denom > 0 ? C / denom : 0;
 }
 function clmmValue(L: number, p: number, pa: number, pb: number): number {
   const sp = Math.sqrt(p), spa = Math.sqrt(pa), spb = Math.sqrt(pb);
   let x = 0, y = 0;
-  if (p <= pa) { x = L * (1 / spa - 1 / spb); }
-  else if (p >= pb) { y = L * (spb - spa); }
+  if (p <= pa) x = L * (1 / spa - 1 / spb);
+  else if (p >= pb) y = L * (spb - spa);
   else { x = L * (1 / sp - 1 / spb); y = L * (sp - spa); }
   return x * p + y;
 }
@@ -37,73 +54,88 @@ function amountsAt(L: number, p: number, pa: number, pb: number): { x: number; y
   return { x: L * (1 / sp - 1 / spb), y: L * (sp - spa) };
 }
 
-interface SimResult { label: string; net: number; fees: number; il: number; inRange: number; rebal: number; }
-
-interface SimOpts {
-  lowPct: number; upPct: number;
-  rebalanceOnBreach: boolean;
-  regime?: boolean;
-}
+interface Cfg { z: number; hdays: number; rebalanceOnBreach: boolean; regime?: boolean; }
+interface Res { label: string; annNet: number; periodNet: number; fees: number; il: number; inRange: number; rebal: number; }
 
 function simulate(
-  bars: Array<{ close: number; volume: number }>,
-  startIdx: number,
-  label: string,
-  o: SimOpts,
-  feeAprAtRefWidth: number, // 小數
-  refWidth: number,
-  avgVol: number,
-  rollVol: number[],
-  volThresh: number,
-): SimResult {
-  const width = o.upPct - o.lowPct; // 區間寬度（比例）
-  const feeAprInRange = (w: number) => Math.min(3, (feeAprAtRefWidth * refWidth) / Math.max(0.02, w)); // cap 300%
-  const p0 = bars[startIdx].close;
-  let pa = p0 * (1 + o.lowPct), pb = p0 * (1 + o.upPct);
+  bars: Bar[], s: number, e: number, label: string, cfg: Cfg,
+  feeAprRef: number, refWidth: number, avgVol: number,
+  roll30: number[], roll7: number[], volThresh: number,
+): Res {
+  const feeAprInRange = (w: number) => Math.min(3, (feeAprRef * refWidth) / Math.max(0.02, w));
+  const bandAt = (i: number) => { const sg = roll30[i] || 0.02; const m = sg * Math.sqrt(cfg.hdays); return { low: -(cfg.z * m * 1.3), up: cfg.z * m * 0.85 }; };
+
+  let bnd = bandAt(s);
+  let p0 = bars[s].close;
+  let pa = p0 * (1 + bnd.low), pb = p0 * (1 + bnd.up);
+  let curWidth = bnd.up - bnd.low;
   let L = lFromCapital(CAPITAL, p0, pa, pb);
   const a0 = amountsAt(L, p0, pa, pb);
-  let principal = CAPITAL; // 目前部署中的本金（regime/rebalance 時更新）
-  let fees = 0;
-  let inRangeDays = 0, totalDays = 0, rebal = 0;
+  let principal = CAPITAL, fees = 0, inR = 0, tot = 0, rebal = 0;
   let state: 'LP' | 'USDC' = 'LP';
 
-  for (let t = startIdx + 1; t < bars.length; t++) {
-    const p = bars[t].close;
-    totalDays++;
-
-    if (o.regime) {
-      const hi = rollVol[t] > volThresh;
+  for (let t = s + 1; t <= e; t++) {
+    const p = bars[t].close; tot++;
+    if (cfg.regime) {
+      const hi = roll7[t] > volThresh;
       if (state === 'LP' && hi) { principal = clmmValue(L, p, pa, pb); state = 'USDC'; continue; }
       if (state === 'USDC') {
-        if (!hi) { pa = p * (1 + o.lowPct); pb = p * (1 + o.upPct); L = lFromCapital(principal, p, pa, pb); state = 'LP'; }
+        if (!hi) { bnd = bandAt(t); pa = p * (1 + bnd.low); pb = p * (1 + bnd.up); curWidth = bnd.up - bnd.low; L = lFromCapital(principal, p, pa, pb); state = 'LP'; }
         else continue;
       }
     }
-
-    const inRange = p >= pa && p <= pb;
-    if (inRange) {
-      inRangeDays++;
+    if (p >= pa && p <= pb) {
+      inR++;
       const base = clmmValue(L, p, pa, pb);
-      fees += (base * feeAprInRange(width)) / 365 * (avgVol > 0 ? bars[t].volume / avgVol : 1);
-    } else if (o.rebalanceOnBreach) {
+      fees += (base * feeAprInRange(curWidth)) / 365 * (avgVol > 0 ? bars[t].volume / avgVol : 1);
+    } else if (cfg.rebalanceOnBreach) {
       principal = clmmValue(L, p, pa, pb);
-      pa = p * (1 + o.lowPct); pb = p * (1 + o.upPct);
+      bnd = bandAt(t); pa = p * (1 + bnd.low); pb = p * (1 + bnd.up); curWidth = bnd.up - bnd.low;
       L = lFromCapital(principal, p, pa, pb); rebal++;
     }
   }
-
-  const pEnd = bars[bars.length - 1].close;
+  const pEnd = bars[e].close;
   const endPos = state === 'USDC' ? principal : clmmValue(L, pEnd, pa, pb);
   const endValue = endPos + fees;
-  const hodl = a0.x * pEnd + a0.y; // 持有當初投入的兩種代幣
+  const hodl = a0.x * pEnd + a0.y;
+  const days = e - s;
   return {
     label,
-    net: (endValue / CAPITAL - 1) * 100,
+    annNet: (Math.pow(endValue / CAPITAL, 365 / Math.max(1, days)) - 1) * 100,
+    periodNet: (endValue / CAPITAL - 1) * 100,
     fees: (fees / CAPITAL) * 100,
-    il: ((endPos - hodl) / CAPITAL) * 100, // 部位(不含費) vs HODL
-    inRange: totalDays > 0 ? (inRangeDays / totalDays) * 100 : 0,
+    il: ((endPos - hodl) / CAPITAL) * 100,
+    inRange: tot > 0 ? (inR / tot) * 100 : 0,
     rebal,
   };
+}
+
+function idxAfter(bars: Bar[], date: string) { for (let i = 0; i < bars.length; i++) if (bars[i].date >= date) return i; return -1; }
+function idxBefore(bars: Bar[], date: string) { for (let i = bars.length - 1; i >= 0; i--) if (bars[i].date <= date) return i; return -1; }
+
+function runWindow(name: string, bars: Bar[], s: number, e: number, feeAprRef: number, refWidth: number) {
+  if (s < 8 || e <= s + 20) { console.log(`  ${name}: 資料不足`); return; }
+  const closes = bars.map((b) => b.close);
+  const avgVol = bars.slice(s, e + 1).reduce((a, b) => a + b.volume, 0) / Math.max(1, e - s);
+  const roll30 = rollingVolatility(closes, 30);
+  const roll7 = rollingVolatility(closes, 7);
+  const seg = roll7.slice(s, e + 1).filter((v) => v > 0).sort((a, b) => a - b);
+  const volThresh = seg[Math.floor(seg.length * 0.66)] || Infinity;
+  const chg = ((closes[e] / closes[s] - 1) * 100).toFixed(0);
+  console.log(`  ${name}  (${bars[s].date}~${bars[e].date}, ${e - s}天, 底層漲跌 ${chg}%)`);
+  console.log('    策略              年化淨%  期間淨%  手續費%   IL%   在內% 調倉');
+  const cfgs: [string, Cfg][] = [
+    ['1月-平衡(自適應)', { z: 1.5, hdays: 21, rebalanceOnBreach: true }],
+    ['3月-平衡(自適應)', { z: 1.5, hdays: 63, rebalanceOnBreach: true }],
+    ['1週-積極(常調倉)', { z: 1.0, hdays: 5, rebalanceOnBreach: true }],
+    ['1月+波動率擇時', { z: 1.5, hdays: 21, rebalanceOnBreach: true, regime: true }],
+  ];
+  for (const [label, cfg] of cfgs) {
+    const r = simulate(bars, s, e, label, cfg, feeAprRef, refWidth, avgVol, roll30, roll7, volThresh);
+    console.log(`    ${label.padEnd(16)} ${r.annNet.toFixed(1).padStart(7)} ${r.periodNet.toFixed(1).padStart(7)} ${r.fees.toFixed(1).padStart(7)} ${r.il.toFixed(1).padStart(6)} ${r.inRange.toFixed(0).padStart(6)} ${String(r.rebal).padStart(4)}`);
+  }
+  const hodlAnn = (Math.pow(closes[e] / closes[s], 365 / (e - s)) - 1) * 100;
+  console.log(`    ${'HODL(100%幣)'.padEnd(16)} ${hodlAnn.toFixed(1).padStart(7)} ${((closes[e] / closes[s] - 1) * 100).toFixed(1).padStart(7)}`);
 }
 
 async function main() {
@@ -111,6 +143,7 @@ async function main() {
   const wallet = config.wallets[0];
   const { positions, poolMap } = await listPositions(wallet, 0);
   const seen = new Set<string>();
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
   for (const raw of positions) {
     if (seen.has(raw.poolAddress)) continue;
@@ -120,50 +153,40 @@ async function main() {
     const decA = detail?.decimalsA ?? pm?.decimalsA ?? 0;
     const decB = detail?.decimalsB ?? pm?.decimalsB ?? 0;
     const cur = detail?.currentPrice ?? 0;
-    const pair = `${detail?.symbolA || pm?.symbolA}/${detail?.symbolB || pm?.symbolB}`;
+    const symA = detail?.symbolA || pm?.symbolA || '';
+    const pair = `${symA}/${detail?.symbolB || pm?.symbolB}`;
 
-    const bars = await fetchDailyBars(raw.poolAddress, pm?.addressA || '', 180).catch(() => []);
-    if (bars.length < 30) { console.log(`\n=== ${pair} === K線不足(${bars.length})，略過`); continue; }
-    const closes = bars.map((b) => b.close);
-    const sigma = dailyVolatility(closes);
-    const avgVol = bars.reduce((a, b) => a + b.volume, 0) / bars.length;
-    const rollVol = rollingVolatility(closes, 7);
-    const sortedVol = [...rollVol].filter((v) => v > 0).sort((a, b) => a - b);
-    const volThresh = sortedVol[Math.floor(sortedVol.length * 0.66)] || Infinity; // 上 1/3 視為高波動
-
-    // 校準錨點：用該部位目前實際手續費年化 + 區間寬度
+    // 校準錨點
     const { priceLower, priceUpper } = ticksToPriceRange(raw.lowerTick, raw.upperTick, decA, decB, cur);
     const refWidth = cur > 0 ? (priceUpper - priceLower) / cur : 0.2;
     const ageMs = raw.positionAgeMs || 0;
-    const refAprPos = ageMs > 86_400_000 && parseFloat(raw.totalDeposit || '0') > 0
+    const feeAprRef = ageMs > 86_400_000 && parseFloat(raw.totalDeposit || '0') > 0
       ? (parseFloat(raw.earnedUsd || '0') / parseFloat(raw.totalDeposit || '0')) * (365 * 86_400_000 / ageMs)
       : (detail?.feeApr ?? 0) / 100;
 
-    const start = 8; // 讓滾動波動度先暖機
-    const band = (z: number, hdays: number) => {
-      const move = sigma * Math.sqrt(hdays);
-      return { low: -(z * move * 1.3), up: z * move * 0.85 };
-    };
-    const b1m = band(1.5, 21), b3m = band(1.5, 63), b1w = band(1.0, 5);
-
-    const results: SimResult[] = [
-      simulate(bars, start, '1月-平衡(持有)', { lowPct: b1m.low, upPct: b1m.up, rebalanceOnBreach: true }, refAprPos, refWidth, avgVol, rollVol, volThresh),
-      simulate(bars, start, '3月-平衡(持有)', { lowPct: b3m.low, upPct: b3m.up, rebalanceOnBreach: true }, refAprPos, refWidth, avgVol, rollVol, volThresh),
-      simulate(bars, start, '1週-積極(常調倉)', { lowPct: b1w.low, upPct: b1w.up, rebalanceOnBreach: true }, refAprPos, refWidth, avgVol, rollVol, volThresh),
-      simulate(bars, start, '1月+波動率擇時', { lowPct: b1m.low, upPct: b1m.up, rebalanceOnBreach: true, regime: true }, refAprPos, refWidth, avgVol, rollVol, volThresh),
-    ];
-    // HODL 基準
-    const pEnd = closes[closes.length - 1], pS = closes[start];
-    const hodlNet = (pEnd / pS - 1) * 100 * 0.5; // 50% 在幣、50% 在 U（粗略基準）
-
-    console.log(`\n=== ${pair} ===  σ日=${(sigma * 100).toFixed(2)}%  錨點(寬${(refWidth * 100).toFixed(0)}%→年化${(refAprPos * 100).toFixed(0)}%)  期間${closes.length}天  期間漲跌=${((pEnd / pS - 1) * 100).toFixed(1)}%`);
-    console.log('策略                淨報酬%   手續費%    IL%   在內%  調倉');
-    for (const r of results) {
-      console.log(
-        `${r.label.padEnd(18)} ${r.net.toFixed(1).padStart(7)} ${r.fees.toFixed(1).padStart(8)} ${r.il.toFixed(1).padStart(7)} ${r.inRange.toFixed(0).padStart(6)} ${String(r.rebal).padStart(5)}`,
-      );
+    const stooqSym = STOOQ[symA];
+    let bars: Bar[] = [];
+    let src = '';
+    if (stooqSym) {
+      bars = await fetchStooq(stooqSym, '20210101', today).catch(() => []);
+      src = `Stooq ${stooqSym}`;
     }
-    console.log(`(基準) HODL 50/50      ${hodlNet.toFixed(1).padStart(7)}`);
+    if (bars.length < 60) {
+      const bb = await fetchDailyBars(raw.poolAddress, pm?.addressA || '', 180).catch(() => []);
+      bars = bb.map((b, i) => ({ date: String(i), close: b.close, volume: b.volume }));
+      src = 'Byreal 180d';
+    }
+    console.log(`\n══════ ${pair}  (來源 ${src}, ${bars.length} 天, 錨點 寬${(refWidth * 100).toFixed(0)}%→年化${(feeAprRef * 100).toFixed(0)}%) ══════`);
+    if (bars.length < 40) { console.log('  資料不足，略過'); continue; }
+
+    // 全期間
+    runWindow('全期間', bars, 8, bars.length - 1, feeAprRef, refWidth);
+    // 2022 熊市段
+    const b22s = idxAfter(bars, '2022-01-01'), b22e = idxBefore(bars, '2022-12-31');
+    if (b22s > 0 && b22e > b22s) runWindow('2022熊市', bars, b22s, b22e, feeAprRef, refWidth);
+    // 2023-2024 復甦段
+    const b23s = idxAfter(bars, '2023-01-01'), b24e = idxBefore(bars, '2024-12-31');
+    if (b23s > 0 && b24e > b23s) runWindow('2023-24復甦', bars, b23s, b24e, feeAprRef, refWidth);
   }
 }
 
