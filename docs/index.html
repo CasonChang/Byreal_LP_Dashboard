@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Byreal LP 績效儀表板</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-  <link rel="stylesheet" href="./styles.css?v=11" />
+  <link rel="stylesheet" href="./styles.css?v=12" />
 </head>
 <body>
   <header class="topbar">
@@ -48,11 +48,18 @@
     <section class="panel">
       <div class="panel-head">
         <h2>目前部位</h2>
-        <div class="tabs" id="styleTabs">
-          <span class="tabs-label">區間建議</span>
-          <button data-style="conservative">保守</button>
-          <button data-style="balanced" class="active">平衡</button>
-          <button data-style="aggressive">積極</button>
+        <div class="suggest-controls">
+          <div class="tabs" id="styleTabs"><span class="tabs-label">風格</span>
+            <button data-style="conservative">保守</button>
+            <button data-style="balanced" class="active">平衡</button>
+            <button data-style="aggressive">積極</button>
+          </div>
+          <div class="tabs" id="horizonTabs"><span class="tabs-label">持有期</span>
+            <button data-h="1w">1週</button>
+            <button data-h="1m" class="active">1月</button>
+            <button data-h="3m">3月</button>
+            <button data-h="6m">6月</button>
+          </div>
         </div>
       </div>
       <div id="positions" class="positions"></div>
@@ -76,7 +83,7 @@
         <li>「損益 / 總損益」僅反映代幣價格變動與無常損失（IL），<b>不含手續費</b>。</li>
         <li>超短持倉（如數十分鐘）的「年化」是把瞬間速率外推一整年，數字會偏大，僅供參考。</li>
         <li>調倉（改區間）在 CLMM 等於「關舊單、開新單」，因此每次調倉都會在歷史中新增一筆已關閉部位。</li>
-        <li><b>區間建議演算法（簡化）</b>：取該池近 30 日 K 線算「日波動度 σ」，估算 7 天持有期內波動幅度 ≈ σ×√7，再依風格倍率（保守 2.0／平衡 1.5／積極 1.0）展開。並採<b>不對稱</b>：下限拉寬 1.3 倍、上限收窄 0.85 倍——因為超上限只是「高點轉成穩定幣、可選擇再開」，超下限才會吃到無常損失、且常被迫低點接刀，故給下方更多緩衝。此為輔助參考，非投資建議。</li>
+        <li><b>區間建議演算法（簡化）</b>：取該池近 30 日 K 線算「日波動度 σ」，估算持有期(可選 1週/1月/3月/6月，分別 5/21/63/126 交易日)內波動幅度 ≈ σ×√天數，再依風格倍率（保守 2.0／平衡 1.5／積極 1.0）展開。並採<b>不對稱</b>：下限拉寬 1.3 倍、上限收窄 0.85 倍——因為超上限只是「高點轉成穩定幣、可選擇再開」，超下限才會吃到無常損失、且常被迫低點接刀，故給下方更多緩衝。<b>持有期拉越長→區間越寬→手續費年化越低</b>，這是無法兩全的取捨。此為輔助參考，非投資建議。</li>
         <li>所有資料為唯讀查詢，不涉及任何錢包授權。</li>
       </ul>
     </section>
@@ -88,6 +95,6 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="./app.js?v=11"></script>
+  <script src="./app.js?v=12"></script>
 </body>
 </html>

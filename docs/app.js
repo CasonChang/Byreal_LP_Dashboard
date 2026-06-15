@@ -47,7 +47,21 @@ const cardHtml = (c) =>
 
 let chart, historyData;
 let suggestStyle = 'balanced';
+let suggestHorizon = '1m';
 let lastPositions = [];
+
+// 區間建議：依風格(z 倍率)與持有期(交易日)從日波動度 σ 算出，不對稱(下限拉寬)
+const STYLE_Z = { conservative: { z: 2.0, prob: 85 }, balanced: { z: 1.5, prob: 75 }, aggressive: { z: 1.0, prob: 65 } };
+const HORIZON_DAYS = { '1w': 5, '1m': 21, '3m': 63, '6m': 126 };
+const HORIZON_LABEL = { '1w': '1週', '1m': '1月', '3m': '3月', '6m': '6月' };
+const LOWER_MULT = 1.3, UPPER_MULT = 0.85;
+function calcRange(price, sigma, style, hKey) {
+  if (!(price > 0) || !(sigma > 0)) return null;
+  const { z, prob } = STYLE_Z[style];
+  const move = sigma * Math.sqrt(HORIZON_DAYS[hKey] || 21);
+  const lowPct = -(z * move * LOWER_MULT), upPct = z * move * UPPER_MULT;
+  return { low: price * (1 + lowPct), high: price * (1 + upPct), lowPct: lowPct * 100, upPct: upPct * 100, stayProb: prob };
+}
 
 async function load() {
   const [latest, history] = await Promise.all([
@@ -179,11 +193,11 @@ function renderPositions(positions) {
       let pos = ((p.currentPrice - p.priceLower) / span) * 100;
       pos = Math.max(2, Math.min(98, pos));
       const markerCls = p.inRange ? '' : 'out';
-      const sg = p.suggestions ? p.suggestions[suggestStyle] : null;
+      const sg = calcRange(p.currentPrice, p.volatilityDaily, suggestStyle, suggestHorizon);
       const suggestHtml = sg
-        ? `<div class="suggest">💡 建議區間 <b>${fmtPrice(sg.low)} ~ ${fmtPrice(sg.high)}</b>
+        ? `<div class="suggest">💡 建議區間 <span class="sg-tag">${HORIZON_LABEL[suggestHorizon]}</span> <b>${fmtPrice(sg.low)} ~ ${fmtPrice(sg.high)}</b>
              <span class="sg-pct">(${sg.lowPct.toFixed(1)}% / +${sg.upPct.toFixed(1)}%)</span>
-             <span class="sg-prob" data-tip="此風格的名目「在區間內時間比例」估計值。區間越寬越高、但手續費率越低。">風格在內 ~${sg.stayProb}% ⓘ</span></div>`
+             <span class="sg-prob" data-tip="此風格的名目「在區間內時間比例」估計值。持有期越長/區間越寬越能撐住，但手續費年化會越低。">在內 ~${sg.stayProb}% ⓘ</span></div>`
         : '';
       // 上下限相對現價的差距%（下限通常為負、上限為正）
       const lowPct = p.currentPrice > 0 ? ((p.priceLower - p.currentPrice) / p.currentPrice) * 100 : 0;
@@ -223,6 +237,14 @@ function setupStyleTabs() {
       document.querySelectorAll('#styleTabs button').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       suggestStyle = btn.dataset.style;
+      renderPositions(lastPositions);
+    };
+  });
+  document.querySelectorAll('#horizonTabs button').forEach((btn) => {
+    btn.onclick = () => {
+      document.querySelectorAll('#horizonTabs button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      suggestHorizon = btn.dataset.h;
       renderPositions(lastPositions);
     };
   });
