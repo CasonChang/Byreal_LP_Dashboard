@@ -20,11 +20,20 @@ const YHOO: Record<string, string> = { QQQx: 'QQQ', TSLAx: 'TSLA', NVDAx: 'NVDA'
 
 interface Bar { date: string; close: number; volume: number; }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function fetchYahoo(sym: string): Promise<Bar[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=5y&interval=1d`;
-  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36' } });
-  if (!res.ok) throw new Error(`yahoo ${res.status}`);
-  const j: any = await res.json();
+  const hosts = ['query1', 'query2', 'query1'];
+  let lastErr = '';
+  let j: any = null;
+  for (let i = 0; i < hosts.length; i++) {
+    const url = `https://${hosts[i]}.finance.yahoo.com/v8/finance/chart/${sym}?range=5y&interval=1d`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36', accept: 'application/json' } });
+    if (res.status === 429 || res.status >= 500) { lastErr = `yahoo ${res.status}`; await sleep(1500 * (i + 1)); continue; }
+    if (!res.ok) throw new Error(`yahoo ${res.status}`);
+    j = await res.json(); break;
+  }
+  if (!j) throw new Error(lastErr || 'yahoo no data');
   const r = j?.chart?.result?.[0];
   const ts: number[] = r?.timestamp || [];
   const q = r?.indicators?.quote?.[0] || {};
