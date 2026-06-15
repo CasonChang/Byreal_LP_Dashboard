@@ -1,0 +1,36 @@
+name: 熱門池掃描
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * *' # 每日 01:00 UTC
+
+concurrency:
+  group: byreal-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: 跑掃描
+        env:
+          WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
+        run: npx tsx src/scan.ts
+      - name: 提交 scan.json
+        run: |
+          git config user.name "byreal-bot"
+          git config user.email "actions@github.com"
+          git add docs/data/scan.json
+          if git diff --staged --quiet; then echo "無變更"; exit 0; fi
+          git commit -m "chore: 更新熱門池掃描 [skip ci]"
+          for i in 1 2 3 4; do git pull --rebase origin main && git push && break; echo retry $i; sleep $((2**i)); done
