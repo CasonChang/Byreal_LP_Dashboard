@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Byreal LP 研究室</title>
+  <link rel="stylesheet" href="./styles.css?v=12" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🔬</span>
+      <div>
+        <h1>Byreal LP 研究室</h1>
+        <p class="sub">熱門池掃描 + 區間試算（與主 Dashboard 分開）</p>
+      </div>
+    </div>
+    <div class="updated"><a class="navlink" href="./index.html">← 回 Dashboard</a></div>
+  </header>
+
+  <main id="app">
+    <section class="panel">
+      <div class="panel-head"><h2 id="scanTitle">熱門池掃描</h2></div>
+      <p class="hint">效率分 = 手續費年化 ÷ 年化波動度（每承受一單位波動換到多少手續費，越高越甜）。週轉率 = 24h量 ÷ TVL（越高手續費越多）。⚠️ TVL 過小的高 APR 池風險高（易被操縱），已標示。</p>
+      <div id="scanTable" class="closed-table"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>區間試算器</h2></div>
+      <p class="hint">挑一個池子（自動帶入波動度）或自填日波動度，看不同風格/持有期建議的區間寬度與集中倍數。下限採不對稱拉寬 1.3 倍、上限 0.85 倍。</p>
+      <div class="calc">
+        <label>標的
+          <select id="calcPool"></select>
+        </label>
+        <label>日波動度σ %
+          <input id="calcSigma" type="number" step="0.1" value="1.5" />
+        </label>
+        <label>風格
+          <select id="calcStyle"><option value="conservative">保守</option><option value="balanced" selected>平衡</option><option value="aggressive">積極</option></select>
+        </label>
+        <label>持有期
+          <select id="calcHorizon"><option value="1w">1週</option><option value="1m" selected>1月</option><option value="3m">3月</option><option value="6m">6月</option></select>
+        </label>
+      </div>
+      <div id="calcOut" class="calc-out"></div>
+    </section>
+
+    <section class="panel notes">
+      <div class="panel-head"><h2>回測重點結論（2021–2026 含 2022 熊市）</h2></div>
+      <ul>
+        <li><b>LP 是盤整/緩漲策略</b>：橫盤刷手續費最甜；強多頭會慘輸抱幣（一直賣掉上漲的幣＝IL）；大空頭仍虧但比抱幣少虧。</li>
+        <li><b>千萬別頻繁調倉</b>：回測中「1週-積極」在每個情境都最差，崩盤時最慘（追跌接刀）。1月或3月、少動才對。</li>
+        <li><b>避開超高波動單一個股</b>：TSLA 五年 LP 倒虧 56%（底層卻漲）；QQQ 指數型最穩。低波動 + 高週轉才是好標的。</li>
+        <li><b>判斷「淨報酬」別只看 USD</b>：手續費穩定為正 + 贏過直接抱同一檔幣 = 策略有效；USD 淨值會被幣價綁架。</li>
+        <li>本頁為輔助研究，非投資建議。</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>研究室・唯讀查詢</span>
+    <span>資料來源：Byreal API</span>
+  </footer>
+
+  <script src="./research.js?v=12"></script>
+</body>
+</html>

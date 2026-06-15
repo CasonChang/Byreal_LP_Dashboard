@@ -155,6 +155,17 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
 .empty { color: var(--muted); text-align: center; padding: 24px; }
 
+.navlink { color: var(--accent); text-decoration: none; font-size: 14px; }
+.navlink:hover { text-decoration: underline; }
+.hint { color: var(--muted); font-size: 13px; margin: -4px 0 14px; line-height: 1.6; }
+.calc { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.calc label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.calc select, .calc input { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 7px 10px; font-size: 14px; min-width: 130px; }
+.calc-out { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; }
+.calc-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.calc-card .label { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+.calc-card .value { font-size: 20px; font-weight: 700; }
+
 @media (max-width: 560px) {
   .topbar h1 { font-size: 15px; }
   .card .value { font-size: 20px; }
