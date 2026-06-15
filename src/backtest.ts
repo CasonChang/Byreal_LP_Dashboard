@@ -15,22 +15,25 @@ import { ticksToPriceRange } from './tick.ts';
 import { fetchDailyBars, rollingVolatility } from './kline.ts';
 
 const CAPITAL = 10000;
-const STOOQ: Record<string, string> = { QQQx: 'qqq.us', TSLAx: 'tsla.us', NVDAx: 'nvda.us', AAPLx: 'aapl.us', MSFTx: 'msft.us', GOOGLx: 'googl.us', AMZNx: 'amzn.us', METAx: 'meta.us' };
+// xStock 代號 → 底層美股代號（Yahoo Finance）
+const YHOO: Record<string, string> = { QQQx: 'QQQ', TSLAx: 'TSLA', NVDAx: 'NVDA', AAPLx: 'AAPL', MSFTx: 'MSFT', GOOGLx: 'GOOGL', AMZNx: 'AMZN', METAx: 'META', SPYx: 'SPY' };
 
 interface Bar { date: string; close: number; volume: number; }
 
-async function fetchStooq(sym: string, d1: string, d2: string): Promise<Bar[]> {
-  const url = `https://stooq.com/q/d/l/?s=${sym}&d1=${d1}&d2=${d2}&i=d`;
+async function fetchYahoo(sym: string): Promise<Bar[]> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=5y&interval=1d`;
   const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36' } });
-  if (!res.ok) throw new Error(`stooq ${res.status}`);
-  const text = await res.text();
-  if (!/^Date,/i.test(text.trim())) { console.log(`  (Stooq ${sym} 回傳非預期: ${text.slice(0, 60).replace(/\n/g, ' ')})`); return []; }
-  const lines = text.trim().split(/\r?\n/);
+  if (!res.ok) throw new Error(`yahoo ${res.status}`);
+  const j: any = await res.json();
+  const r = j?.chart?.result?.[0];
+  const ts: number[] = r?.timestamp || [];
+  const q = r?.indicators?.quote?.[0] || {};
+  const closes: number[] = q.close || [];
+  const vols: number[] = q.volume || [];
   const bars: Bar[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const [date, , , , c, v] = lines[i].split(',');
-    const close = parseFloat(c), vol = parseFloat(v || '0');
-    if (date && close > 0) bars.push({ date, close, volume: Number.isFinite(vol) ? vol : 0 });
+  for (let i = 0; i < ts.length; i++) {
+    const c = closes[i];
+    if (c && c > 0) bars.push({ date: new Date(ts[i] * 1000).toISOString().slice(0, 10), close: c, volume: vols[i] || 0 });
   }
   return bars;
 }
@@ -165,12 +168,12 @@ async function main() {
       ? (parseFloat(raw.earnedUsd || '0') / parseFloat(raw.totalDeposit || '0')) * (365 * 86_400_000 / ageMs)
       : (detail?.feeApr ?? 0) / 100;
 
-    const stooqSym = STOOQ[symA];
+    const yhooSym = YHOO[symA];
     let bars: Bar[] = [];
     let src = '';
-    if (stooqSym) {
-      bars = await fetchStooq(stooqSym, '20210101', today).catch(() => []);
-      src = `Stooq ${stooqSym}`;
+    if (yhooSym) {
+      bars = await fetchYahoo(yhooSym).catch((e) => { console.log(`  (Yahoo ${yhooSym} 失敗: ${(e as Error).message})`); return []; });
+      src = `Yahoo ${yhooSym}`;
     }
     if (bars.length < 60) {
       const bb = await fetchDailyBars(raw.poolAddress, pm?.addressA || '', 180).catch(() => []);
