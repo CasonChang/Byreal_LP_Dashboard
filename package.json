@@ -12,6 +12,7 @@
     "collect:dry": "DRY_RUN=true tsx src/collect.ts",
     "report:dry": "DRY_RUN=true tsx src/daily-report.ts",
     "mock": "tsx src/mock.ts",
+    "backtest": "tsx src/backtest.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -39,6 +39,41 @@ export function dailyVolatility(closes: number[]): number {
   return Math.sqrt(variance);
 }
 
+/** 取得近 days 天的日 K（含收盤與成交量），給回測用。 */
+export async function fetchDailyBars(poolAddress: string, tokenAddress: string, days = 180): Promise<Array<{ close: number; volume: number }>> {
+  if (!poolAddress || !tokenAddress) return [];
+  const end = Math.floor(Date.now() / 1000);
+  const start = end - days * 86400;
+  const url = new URL(config.byrealApiUrl + '/byreal/api/dex/v2/kline/query-ui');
+  url.searchParams.set('poolAddress', poolAddress);
+  url.searchParams.set('tokenAddress', tokenAddress);
+  url.searchParams.set('klineType', '1d');
+  url.searchParams.set('startTime', String(start));
+  url.searchParams.set('endTime', String(end));
+  const res = await fetch(url.toString(), { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`kline ${res.status}`);
+  const j: any = await res.json();
+  const data: any[] = j?.result?.data || [];
+  return data
+    .map((k) => ({ close: parseFloat(k.c ?? k.close ?? '0'), volume: parseFloat(k.v ?? k.volume ?? '0') }))
+    .filter((b) => Number.isFinite(b.close) && b.close > 0);
+}
+
+/** 由日對數報酬算「近 window 天」的滾動日波動度，回傳每天一個值（給 regime 濾網用）。 */
+export function rollingVolatility(closes: number[], window = 7): number[] {
+  const out: number[] = new Array(closes.length).fill(0);
+  const rets = closes.map((c, i) => (i === 0 || closes[i - 1] <= 0 ? 0 : Math.log(c / closes[i - 1])));
+  for (let i = 0; i < closes.length; i++) {
+    const s = Math.max(1, i - window + 1);
+    const slice = rets.slice(s, i + 1);
+    if (slice.length < 3) { out[i] = 0; continue; }
+    const mean = slice.reduce((a, b) => a + b, 0) / slice.length;
+    const v = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / (slice.length - 1);
+    out[i] = Math.sqrt(v);
+  }
+  return out;
+}
+
 export interface RangeSuggestion {
   low: number;
   high: number;
