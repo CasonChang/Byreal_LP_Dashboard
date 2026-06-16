@@ -161,11 +161,12 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
   const totalLiquidity = sum(positions.map((p) => p.liquidityUsd));
   const totalDeposit = sum(positions.map((p) => p.depositUsd));
   const totalEarned = sum(positions.map((p) => p.earnedUsd));
-  // 整體年化：以本金加權各部位的年化
+  // 整體年化：用「資金×時間加權」(= 總手續費 ÷ 投入本金·年)，避免超短持倉把年化灌爆
+  const activeDepositYears = sum(positions.map((p) => p.depositUsd * (p.ageDays / 365)));
   const realApr =
-    totalDeposit > 0 ? sum(positions.map((p) => p.realApr * p.depositUsd)) / totalDeposit : 0;
+    activeDepositYears > 0 ? (sum(positions.map((p) => p.earnedUsd)) / activeDepositYears) * 100 : 0;
   const totalReturnApr =
-    totalDeposit > 0 ? sum(positions.map((p) => p.totalReturnApr * p.depositUsd)) / totalDeposit : 0;
+    activeDepositYears > 0 ? (sum(positions.map((p) => p.totalReturnUsd)) / activeDepositYears) * 100 : 0;
   const totals = {
     liquidityUsd: totalLiquidity,
     earnedUsd: totalEarned,

@@ -106,7 +106,7 @@ function renderSummary(t) {
     { label: '累積手續費', value: fmtUsd(t.earnedUsd), cls: 'pos-val',
       tip: '現有部位開倉至今的手續費（已領＋未領）。已關閉部位的手續費請看下方策略總覽。' },
     { label: '手續費年化', value: fmtPct(t.realApr ?? 0), cls: (t.realApr ?? 0) > 0 ? 'pos-val' : '',
-      tip: '只算手續費：Σ(累計手續費) ÷ 投入本金，再依持倉時間換算成一年。不含價格漲跌。' },
+      tip: '資金×時間加權：總手續費 ÷ (投入本金×持倉年數)。短持倉部位自動只佔小權重，不會把年化灌爆。不含價格漲跌。' },
     { label: '損益(不含手續費)', value: fmtUsd(t.pnlUsd), cls: cls(t.pnlUsd),
       tip: '只看「現有部位」的未實現損益：部位現值 − 投入本金，來自代幣價格變動與無常損失（IL）。不含手續費。' },
     { label: '總報酬', value: fmtUsd(totalReturn), cls: cls(totalReturn),
@@ -251,6 +251,8 @@ function setupStyleTabs() {
 }
 
 function perfMetrics(p) {
+  const young = (p.ageDays ?? 99) < 2;
+  const ageNote = young ? '⚠️ 持倉不足 2 天，年化是把短期速率外推一整年，數字會嚴重偏大、僅供參考。' : '';
   const ut = p.unclaimedTokens || [];
   const breakdown = ut.length ? '；未領明細｜' + ut.map((t) => `${t.symbol} ${fmtAmt(t.amount)}（${fmtUsd(t.usd)}）`).join('；') : '';
   const feeTip = `此部位開倉至今手續費（已領 ${fmtUsd(p.claimedFeeUsd ?? 0)} ＋ 未領 ${fmtUsd(p.unclaimedFeeUsd ?? 0)}）。即使領出賣掉仍記得（鏈上累計值）${breakdown}`;
@@ -258,10 +260,10 @@ function perfMetrics(p) {
     mtr('倉位價值', fmtUsd(p.liquidityUsd), '此部位目前現值（兩種代幣數量 × 現價）。'),
     mtr('投入本金', fmtUsd(p.depositUsd ?? 0), '開倉至今投入此部位的本金（含後續加倉）。'),
     mtr('累積手續費', fmtUsd(p.earnedUsd), feeTip, 'pos-val'),
-    mtr('手續費年化', fmtPct(p.realApr ?? 0), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。', (p.realApr ?? 0) > 0 ? 'pos-val' : ''),
+    mtr('手續費年化', fmtPct(p.realApr ?? 0) + (young ? ' ⚠️' : ''), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。' + ageNote, (p.realApr ?? 0) > 0 ? 'pos-val' : ''),
     mtr('損益(不含手續費)', fmtUsd(p.pnlUsd), '代幣價格變動 / 無常損失（IL），不含手續費。', cls(p.pnlUsd)),
     mtr('總報酬', fmtUsd(p.totalReturnUsd ?? ((p.earnedUsd ?? 0) + (p.pnlUsd ?? 0))), '累積手續費 ＋ 損益的合計金額（你這筆實際賺賠多少）。', cls(p.totalReturnUsd ?? ((p.earnedUsd ?? 0) + (p.pnlUsd ?? 0)))),
-    mtr('總報酬年化', fmtPct(p.totalReturnApr ?? 0), '含損益：((累計手續費 + 損益) ÷ 投入本金) 年化。', cls(p.totalReturnApr ?? 0)),
+    mtr('總報酬年化', fmtPct(p.totalReturnApr ?? 0) + (young ? ' ⚠️' : ''), '含損益：(總報酬 ÷ 投入本金) 年化。' + ageNote, cls(p.totalReturnApr ?? 0)),
   ].join('');
 }
 
