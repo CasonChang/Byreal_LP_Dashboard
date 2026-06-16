@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-15T22:18:24.600Z",
+  "updatedAt": "2026-06-16T00:27:11.597Z",
   "equity": [
     {
       "date": "2026-06-14",
@@ -21,24 +21,25 @@
     },
     {
       "date": "2026-06-16",
-      "liquidityUsd": 11245.385856104976,
-      "lifetimeFeesUsd": 429.4406950650829,
-      "pnlUsd": 372.26800134871746,
-      "feeApr": 23.7276753465804,
-      "totalApr": 44.29641598860095,
-      "dailyFeeUsd": 4.306159517093988
+      "liquidityUsd": 11240.806285151499,
+      "lifetimeFeesUsd": 429.76954157414707,
+      "pnlUsd": 368.0172769043051,
+      "feeApr": 23.709457444790164,
+      "totalApr": 44.012175812757135,
+      "dailyFeeUsd": 4.63500602615818
     }
   ],
   "events": [
     {
-      "type": "range_warning",
-      "occurredAt": "2026-06-15T22:18:24.600Z",
+      "type": "out_of_range",
+      "occurredAt": "2026-06-16T00:27:11.597Z",
       "positionAddress": "6uxTwn7DciePCju51FviM29twbEncabiRhn5KEWYRdAh",
       "pair": "SPCXx/USDC",
-      "message": "⚠️ <b>SPCXx/USDC</b> 快出界！距最近邊界僅 0.4%（價格 196.6688，區間 129.8211~197.3811）",
+      "message": "🚨 <b>SPCXx/USDC</b> 已出界！目前價格 205.9407，區間 129.8211~197.3811（已停止賺取手續費）",
       "detail": {
-        "nearestBoundaryPct": 0.36214541296581915,
-        "currentPrice": 196.66883543393544
+        "currentPrice": 205.94067004800002,
+        "priceLower": 129.82107248025224,
+        "priceUpper": 197.38106260019273
       }
     }
   ]
