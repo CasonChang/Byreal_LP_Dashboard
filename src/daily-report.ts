@@ -8,6 +8,7 @@ import { buildSnapshot } from './metrics.ts';
 import { saveSnapshot, saveDailyReport, getLastDailySummary, getRecentEvents } from './supabase.ts';
 import { sendTelegram } from './telegram.ts';
 import { exportJson } from './export.ts';
+import { isDirectRun } from './runtime.ts';
 import { usd, pct, price, taipeiDate } from './format.ts';
 import type { PortfolioSnapshot } from './types.ts';
 
@@ -35,7 +36,7 @@ function deltaLine(label: string, now: number, prev: number | undefined, isUsd =
   return `${label}：${isUsd ? usd(now) : pct(now)}（${arrow}${diffStr}）`;
 }
 
-async function main() {
+export async function runDailyReport() {
   assertConfig({ needSupabase: true, needTelegram: true });
   console.log(`[daily] 產生每日報告${config.dryRun ? ' (DRY_RUN)' : ''}`);
 
@@ -100,7 +101,10 @@ async function main() {
   console.log('[daily] 完成');
 }
 
-main().catch((err) => {
-  console.error('[daily] 失敗:', err);
-  process.exit(1);
-});
+// 直接以 `tsx src/daily-report.ts` 執行時才自動跑；被 import 時不執行。
+if (isDirectRun(import.meta.url)) {
+  runDailyReport().catch((err) => {
+    console.error('[daily] 失敗:', err);
+    process.exit(1);
+  });
+}

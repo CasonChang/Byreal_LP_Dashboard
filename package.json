@@ -4,9 +4,11 @@
   "description": "Byreal Solana LP 流動性池績效追蹤儀表板 + Telegram 推播",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
+    "start": "tsx src/daemon.ts",
+    "daemon": "tsx src/daemon.ts",
     "collect": "tsx src/collect.ts",
     "daily-report": "tsx src/daily-report.ts",
     "collect:dry": "DRY_RUN=true tsx src/collect.ts",
@@ -16,10 +18,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
-    "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "@types/node": "^20.14.0"
   }

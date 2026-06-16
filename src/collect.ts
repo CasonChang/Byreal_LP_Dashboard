@@ -14,6 +14,7 @@ import { detectEvents } from './events.ts';
 import { saveSnapshot, saveEvents } from './supabase.ts';
 import { sendTelegram } from './telegram.ts';
 import { exportJson, readPreviousPositions } from './export.ts';
+import { isDirectRun } from './runtime.ts';
 import { usd } from './format.ts';
 import type { LpEvent } from './types.ts';
 
@@ -30,7 +31,11 @@ const PUSH_TYPES = new Set<LpEvent['type']>([
   'close',
 ]);
 
-async function main() {
+/**
+ * 跑一次完整收集流程。可被 CLI(`npm run collect`)或常駐程式(daemon)重複呼叫。
+ * @param pushEvents 是否推播 Telegram（daemon 首輪設 false，只同步狀態、不洗版）
+ */
+export async function runCollectOnce({ pushEvents = true }: { pushEvents?: boolean } = {}): Promise<void> {
   assertConfig({ needSupabase: true, needTelegram: true });
   console.log(`[collect] 錢包: ${config.wallets.join(', ')}${config.dryRun ? ' (DRY_RUN)' : ''}`);
 
@@ -52,14 +57,21 @@ async function main() {
 
   // 推播重要事件
   const toPush = events.filter((e) => PUSH_TYPES.has(e.type));
-  for (const e of toPush) {
-    await sendTelegram(e.message);
+  if (pushEvents) {
+    for (const e of toPush) {
+      await sendTelegram(e.message);
+    }
+  } else if (toPush.length > 0) {
+    console.log(`[collect] 首輪略過 ${toPush.length} 則推播（僅同步狀態，避免重啟洗版）`);
   }
 
   console.log('[collect] 完成');
 }
 
-main().catch((err) => {
-  console.error('[collect] 失敗:', err);
-  process.exit(1);
-});
+// 直接以 `tsx src/collect.ts` 執行時才自動跑一次；被 import 時不執行。
+if (isDirectRun(import.meta.url)) {
+  runCollectOnce().catch((err) => {
+    console.error('[collect] 失敗:', err);
+    process.exit(1);
+  });
+}
