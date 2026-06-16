@@ -130,6 +130,20 @@ function positionRow(snapshotId: number, capturedAt: string, p: PositionMetric) 
   };
 }
 
+/**
+ * 把前端要用的「成品」整包寫進 dashboard_state（前端直讀，免 commit）。
+ * key='latest' 存整份快照；key='history' 存權益曲線 + 事件。
+ * 若 dashboard_state 表尚未建立（還沒跑 dashboard_state.sql），只警告不中斷。
+ */
+export async function saveDashboardState(key: string, payload: unknown): Promise<void> {
+  const d = db();
+  if (!d) return;
+  const { error } = await d
+    .from('dashboard_state')
+    .upsert({ key, payload, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  if (error) console.warn(`寫入 dashboard_state[${key}] 失敗（是否已跑 dashboard_state.sql？）:`, error.message);
+}
+
 export async function saveEvents(events: LpEvent[]): Promise<void> {
   const d = db();
   if (!d || events.length === 0) return;

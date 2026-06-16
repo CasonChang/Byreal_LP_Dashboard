@@ -1,8 +1,8 @@
-name: 收集 LP 資料（每小時）
+name: 收集 LP 資料（每 15 分鐘）
 
 on:
   schedule:
-    - cron: '0 * * * *' # 每小時整點 (UTC)
+    - cron: '*/15 * * * *' # 每 15 分鐘 (UTC，GitHub cron 為盡力而為、可能略延遲)
   workflow_dispatch: # 可手動觸發
   push: # 程式碼變更時重新收集一次（不含資料快照本身，避免迴圈）
     branches:
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   collect:
@@ -42,18 +42,4 @@ jobs:
           RANGE_WARN_PCT: ${{ vars.RANGE_WARN_PCT || '8' }}
           TZ: Asia/Taipei
         run: npm run collect
-
-      - name: 提交更新後的 JSON 快照
-        run: |
-          git config user.name "byreal-bot"
-          git config user.email "actions@github.com"
-          git add docs/data/*.json
-          if git diff --staged --quiet; then
-            echo "沒有變更"
-            exit 0
-          fi
-          git commit -m "chore: 更新 LP 快照 [skip ci]"
-          for i in 1 2 3 4; do
-            git pull --rebase origin ${{ github.ref_name }} && git push && break
-            echo "push 失敗，重試 $i"; sleep $((2**i))
-          done
+        # 資料直接寫進 Supabase（dashboard_state），不再 commit JSON 進 git。

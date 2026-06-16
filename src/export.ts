@@ -7,7 +7,7 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LpEvent, PortfolioSnapshot, PositionMetric } from './types.ts';
-import { getDailyEquityHistory, getRecentEvents } from './supabase.ts';
+import { getDailyEquityHistory, getRecentEvents, saveDashboardState } from './supabase.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(__dirname, '..', 'docs', 'data');
@@ -41,4 +41,8 @@ export async function exportJson(snap: PortfolioSnapshot, recentEvents: LpEvent[
     events: events.slice(0, 200),
   };
   await writeFile(resolve(DATA_DIR, 'history.json'), JSON.stringify(history, null, 2));
+
+  // 同步寫進 Supabase（前端直讀來源；本機檔案僅作離線/退回用）
+  await saveDashboardState('latest', snap);
+  await saveDashboardState('history', history);
 }

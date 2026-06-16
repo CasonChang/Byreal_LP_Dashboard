@@ -65,12 +65,40 @@ function calcRange(price, sigma, style, hKey) {
 
 async function load() {
   const [latest, history] = await Promise.all([
-    fetchJson('./data/latest.json'),
-    fetchJson('./data/history.json').catch(() => ({ equity: [], events: [] })),
+    fetchState('latest', './data/latest.json'),
+    fetchState('history', './data/history.json').catch(() => ({ equity: [], events: [] })),
   ]);
   if (!latest) return showError();
   historyData = history;
   render(latest, history);
+}
+
+/** 若有設定 Supabase（config.js），優先直讀 dashboard_state；失敗則退回讀靜態 JSON 檔。 */
+function sbConfig() {
+  const c = window.BYREAL_CONFIG || {};
+  return c.SUPABASE_URL && c.SUPABASE_ANON_KEY ? c : null;
+}
+
+async function fetchState(key, fileUrl) {
+  const c = sbConfig();
+  if (c) {
+    try {
+      const url = `${c.SUPABASE_URL}/rest/v1/dashboard_state?key=eq.${key}&select=payload`;
+      const res = await fetch(url, {
+        headers: { apikey: c.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + c.SUPABASE_ANON_KEY },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        if (rows && rows[0] && rows[0].payload) return rows[0].payload;
+      } else {
+        console.warn('Supabase 讀取失敗，退回靜態檔', key, res.status);
+      }
+    } catch (e) {
+      console.warn('Supabase 讀取例外，退回靜態檔', key, e);
+    }
+  }
+  return fetchJson(fileUrl);
 }
 
 async function fetchJson(url) {
