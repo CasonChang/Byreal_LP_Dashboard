@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-06-16T06:30:39.763Z",
+  "updatedAt": "2026-06-16T12:09:51.469Z",
   "equity": [
     {
       "date": "2026-06-14",
@@ -21,69 +21,24 @@
     },
     {
       "date": "2026-06-16",
-      "liquidityUsd": 11229.812991876699,
-      "lifetimeFeesUsd": 430.3432223894432,
-      "pnlUsd": -72.74555794464183,
-      "feeApr": 23.638863730226532,
-      "totalApr": 19.642931549199876,
-      "dailyFeeUsd": 5.208686841454323
+      "liquidityUsd": 11249.222401112898,
+      "lifetimeFeesUsd": 430.9608858764344,
+      "pnlUsd": -53.336148708441925,
+      "feeApr": 23.57803647335224,
+      "totalApr": 20.659995182810732,
+      "dailyFeeUsd": 5.826350328445528
     }
   ],
   "events": [
     {
-      "type": "out_of_range",
-      "occurredAt": "2026-06-16T00:27:11.597+00:00",
-      "positionAddress": "6uxTwn7DciePCju51FviM29twbEncabiRhn5KEWYRdAh",
-      "pair": "SPCXx/USDC",
-      "message": "🚨 <b>SPCXx/USDC</b> 已出界！目前價格 205.9407，區間 129.8211~197.3811（已停止賺取手續費）",
-      "detail": {
-        "priceLower": 129.82107248025224,
-        "priceUpper": 197.38106260019273,
-        "currentPrice": 205.94067004800002
-      }
-    },
-    {
       "type": "range_warning",
-      "occurredAt": "2026-06-15T22:18:24.6+00:00",
-      "positionAddress": "6uxTwn7DciePCju51FviM29twbEncabiRhn5KEWYRdAh",
-      "pair": "SPCXx/USDC",
-      "message": "⚠️ <b>SPCXx/USDC</b> 快出界！距最近邊界僅 0.4%（價格 196.6688，區間 129.8211~197.3811）",
-      "detail": {
-        "currentPrice": 196.66883543393544,
-        "nearestBoundaryPct": 0.36214541296581915
-      }
-    },
-    {
-      "type": "range_warning",
-      "occurredAt": "2026-06-15T15:49:20.399+00:00",
+      "occurredAt": "2026-06-16T12:09:51.469Z",
       "positionAddress": "H4KrpUncp1MbU38eYrUWb15JTHd5HfMrTKrTBnP8mkaX",
       "pair": "QQQx/USDC",
-      "message": "⚠️ <b>QQQx/USDC</b> 快出界！距最近邊界僅 2.0%（價格 743.5582，區間 620.2229~758.2923）",
+      "message": "⚠️ <b>QQQx/USDC</b> 快出界！距最近邊界僅 1.6%（價格 746.2315，區間 620.2229~758.2923）",
       "detail": {
-        "currentPrice": 743.5582208895552,
-        "nearestBoundaryPct": 1.9815596693887167
-      }
-    },
-    {
-      "type": "open",
-      "occurredAt": "2026-06-15T15:49:20.399+00:00",
-      "positionAddress": "6uxTwn7DciePCju51FviM29twbEncabiRhn5KEWYRdAh",
-      "pair": "SPCXx/USDC",
-      "message": "🆕 新開倉 <b>SPCXx/USDC</b>｜倉位 $1,027｜區間 129.8211~197.3811",
-      "detail": {
-        "priceLower": 129.82107248025224,
-        "priceUpper": 197.38106260019273,
-        "liquidityUsd": 1027.1165151772702
-      }
-    },
-    {
-      "type": "close",
-      "occurredAt": "2026-06-15T15:49:20.399+00:00",
-      "positionAddress": "C8kHBWRDnJSwhSorPyFxmvFxvc3rUpJUfWAtcheQVjkF",
-      "pair": "SPCXx/USDC",
-      "message": "📕 關閉部位 <b>SPCXx/USDC</b>（已不在 active 清單）｜原倉位 $1,016",
-      "detail": {
-        "lastLiquidityUsd": 1016.229523267783
+        "nearestBoundaryPct": 1.616222740065645,
+        "currentPrice": 746.2315073970412
       }
     }
   ]
