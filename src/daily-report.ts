@@ -62,7 +62,8 @@ async function main() {
   lines.push(deltaLine('🪙 累計手續費', summary.earnedUsd, last?.earnedUsd));
   lines.push(`🟢 未領手續費(可領)：${usd(summary.unclaimedFeeUsd)}`);
   if (summary.bonusUsd > 0) lines.push(`🎁 未領獎勵：${usd(summary.bonusUsd)}`);
-  lines.push(deltaLine('📈 持倉損益(PnL)', summary.pnlUsd, last?.pnlUsd));
+  lines.push(deltaLine('📉 損益(不含手續費)', summary.pnlUsd, last?.pnlUsd));
+  lines.push(`💎 總報酬(含手續費)：${usd(summary.earnedUsd + summary.pnlUsd)}`);
   lines.push(`⚡ 加權池子 APR：${pct(summary.weightedApr)}`);
   lines.push(`📍 部位：${summary.positionCount} 個，區間內 ${summary.inRangeCount} 個`);
   if (snap.strategy) {

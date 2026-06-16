@@ -104,7 +104,9 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
     const annualize = (value: number) =>
       ageMs > 0 && depositUsd > 0 ? (value / depositUsd) * (YEAR_MS / ageMs) * 100 : 0;
     const realApr = annualize(earnedUsdVal); // 只含手續費
-    const totalReturnUsd = earnedUsdVal + pnlUsdVal; // 手續費 + 損益
+    // ⚠️ Byreal 的 pnlUsd 是「總報酬(已含手續費)」= (倉位現值−本金) + 手續費
+    const totalReturnUsd = pnlUsdVal; // 總報酬(含手續費) = Byreal pnlUsd
+    const pricePnlUsd = pnlUsdVal - earnedUsdVal; // 純價格/IL 損益(不含手續費) = 倉位現值 − 本金
     const totalReturnApr = annualize(totalReturnUsd);
 
     positions.push({
@@ -137,8 +139,8 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       totalReturnUsd,
       totalReturnApr,
       ageDays,
-      pnlUsd: parseFloat(raw.pnlUsd || '0'),
-      pnlPct: parseFloat(raw.pnlUsdPercent || '0') * 100,
+      pnlUsd: pricePnlUsd, // 損益(不含手續費)
+      pnlPct: depositUsd > 0 ? (pricePnlUsd / depositUsd) * 100 : 0,
       // position/list 的部位 APR 多半為 null，退回池子 24h 手續費 APR 作為預估
       apr: (() => {
         const posApr = parseFloat(raw.apr || '0') * 100;
@@ -192,7 +194,8 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       const pair = pm?.symbolA && pm?.symbolB ? `${pm.symbolA}/${pm.symbolB}` : raw.poolAddress.slice(0, 6);
       const dUsd = parseFloat(raw.totalDeposit || '0');
       const eUsd = parseFloat(raw.earnedUsd || '0');
-      const plUsd = parseFloat(raw.pnlUsd || '0');
+      const plUsd = parseFloat(raw.pnlUsd || '0'); // Byreal pnl = 總報酬(已含手續費)
+      const pricePnl = plUsd - eUsd; // 損益(不含手續費)
       const ageMs = raw.positionAgeMs || 0;
       const ageDays = ageMs > 0 ? ageMs / 86_400_000 : 0;
       const annualFactor = ageMs > 0 ? (365 * 86_400_000) / ageMs : 0;
@@ -201,11 +204,11 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
         pair,
         depositUsd: dUsd,
         earnedUsd: eUsd,
-        pnlUsd: plUsd,
+        pnlUsd: pricePnl,
         ageDays,
         openTime: raw.openTime || 0,
         feeApr: dUsd > 0 && annualFactor > 0 ? (eUsd / dUsd) * annualFactor * 100 : 0,
-        totalReturnApr: dUsd > 0 && annualFactor > 0 ? ((eUsd + plUsd) / dUsd) * annualFactor * 100 : 0,
+        totalReturnApr: dUsd > 0 && annualFactor > 0 ? (plUsd / dUsd) * annualFactor * 100 : 0,
       });
     }
   }
