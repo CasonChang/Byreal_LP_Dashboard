@@ -1,16 +1,10 @@
-name: 收集 LP 資料（每 10 分鐘）
+name: 收集 LP 資料（備援・手動觸發）
 
+# 收集已改由 Zeabur 常駐 daemon 負責（每 10 分鐘）。
+# 這裡只保留手動觸發當備援：Zeabur 萬一掛了，可到 Actions 頁手動按一下補跑。
+# 自動排程已停用（GitHub cron 不可靠，且會與 Zeabur 重複寫入/重複推播）。
 on:
-  schedule:
-    - cron: '*/10 * * * *' # 每 10 分鐘 (UTC，GitHub cron 為盡力而為、可能略延遲)
-  workflow_dispatch: # 可手動觸發
-  push: # 程式碼變更時重新收集一次（不含資料快照本身，避免迴圈）
-    branches:
-      - main
-      - claude/sharp-hopper-75u1v0
-    paths:
-      - 'src/**'
-      - '.github/workflows/collect.yml'
+  workflow_dispatch: # 僅手動觸發
 
 concurrency:
   group: byreal-data

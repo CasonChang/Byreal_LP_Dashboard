@@ -1,8 +1,8 @@
-name: 每日收益報告
+name: 每日收益報告（備援・手動觸發）
 
+# 每日報告已改由 Zeabur 常駐 daemon 負責（每天 00:00 UTC = 台北 08:00）。
+# 這裡只保留手動觸發當備援。自動排程已停用，避免與 Zeabur 重複發報告。
 on:
-  schedule:
-    - cron: '0 0 * * *' # 每天 00:00 UTC = 台北 08:00
   workflow_dispatch:
 
 concurrency:
