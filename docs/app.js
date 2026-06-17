@@ -323,6 +323,8 @@ const EVENT_TYPES = {
 
 let allEvents = [];
 let activeEventTypes = null; // Set<string>；null 代表尚未初始化（=全選）
+let eventPage = 0;
+const EVENTS_PER_PAGE = 10;
 
 function renderEvents(events) {
   allEvents = (events || []).slice(0, 200);
@@ -335,6 +337,7 @@ function renderEvents(events) {
   else for (const t of present) if (!knownTypesSeen.has(t)) activeEventTypes.add(t); // 新出現的類型預設開啟
   for (const t of present) knownTypesSeen.add(t);
 
+  eventPage = 0;
   renderEventFilters(present);
   renderEventList();
 }
@@ -359,6 +362,7 @@ function renderEventFilters(present) {
       const t = btn.dataset.type;
       if (activeEventTypes.has(t)) activeEventTypes.delete(t); else activeEventTypes.add(t);
       btn.classList.toggle('active');
+      eventPage = 0;
       renderEventList();
     });
   });
@@ -366,12 +370,27 @@ function renderEventFilters(present) {
 
 function renderEventList() {
   const el = document.getElementById('events');
+  const pager = document.getElementById('eventsPager');
+  if (pager) pager.innerHTML = '';
   if (!allEvents.length) { el.innerHTML = '<div class="empty">尚無動作紀錄</div>'; return; }
-  const list = allEvents.filter((e) => !activeEventTypes || activeEventTypes.has(e.type)).slice(0, 80);
+  const list = allEvents.filter((e) => !activeEventTypes || activeEventTypes.has(e.type));
   if (!list.length) { el.innerHTML = '<div class="empty">目前篩選條件下沒有紀錄</div>'; return; }
-  el.innerHTML = list
+
+  const pages = Math.ceil(list.length / EVENTS_PER_PAGE);
+  eventPage = Math.max(0, Math.min(eventPage, pages - 1));
+  const slice = list.slice(eventPage * EVENTS_PER_PAGE, eventPage * EVENTS_PER_PAGE + EVENTS_PER_PAGE);
+  el.innerHTML = slice
     .map((e) => `<div class="evt"><span class="time">${fmtTime(e.occurredAt)}</span><span class="msg">${stripHtml(e.message)}</span></div>`)
     .join('');
+
+  if (pager && pages > 1) {
+    pager.innerHTML = `<button ${eventPage === 0 ? 'disabled' : ''} id="ePrev">‹ 上一頁</button>
+      <span>${eventPage + 1} / ${pages}（共 ${list.length} 筆）</span>
+      <button ${eventPage >= pages - 1 ? 'disabled' : ''} id="eNext">下一頁 ›</button>`;
+    const prev = document.getElementById('ePrev'), next = document.getElementById('eNext');
+    if (prev) prev.onclick = () => { eventPage--; renderEventList(); };
+    if (next) next.onclick = () => { eventPage++; renderEventList(); };
+  }
 }
 
 function stripHtml(s) { return String(s || '').replace(/<\/?b>/g, ''); }
