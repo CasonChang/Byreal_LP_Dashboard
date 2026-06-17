@@ -27,10 +27,15 @@
 ## 1. 在 Zeabur 建立服務
 
 1. 登入 [zeabur.com](https://zeabur.com) → 進你的專案（或新建一個）。
-2. **Add Service → Deploy from GitHub** → 選 `CasonChang/Byreal_LP_Dashboard`。
-3. 分支選 **`main`**。
-4. Zeabur 會自動辨識 Node 專案，安裝依賴並執行 `npm start`（已在 `package.json` 設好 = 啟動 daemon）。
-   - 不需要 Dockerfile，也不需要 build 步驟（用 tsx 直接跑 TypeScript）。
+2. **Add Service → GitHub**（⚠️ 要用 GitHub 整合，**不要**用「貼 Git 網址 / Git URL」）。
+   - 第一次會要你安裝 **Zeabur 的 GitHub App** 並授權 `CasonChang/Byreal_LP_Dashboard`。
+   - 用 GitHub 整合才能：① 自動讀到 `Dockerfile`、② **push 到 main 自動重新部署**。
+3. 選 repo `CasonChang/Byreal_LP_Dashboard` → 分支 **`main`**。
+4. Zeabur 會偵測到根目錄的 **`Dockerfile`** 自動 build 並執行（容器內跑 `npm start` = 啟動 daemon）。
+
+> ⚠️ 若你看到錯誤 `Dockerfile is required for arbitrary Git sources. Auto-detection is not
+> supported yet.`，代表你是用「貼 Git 網址」的方式加服務。repo 已含 Dockerfile，
+> 但那種模式不會自動重抓最新 commit——請改用上面的 **GitHub 整合**重建服務最省事。
 
 ---
 
