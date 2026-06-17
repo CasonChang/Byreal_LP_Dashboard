@@ -308,11 +308,68 @@ function poolMetrics(p) {
   ].join('');
 }
 
+// 事件類型 → 圖示 + 中文標籤（也決定篩選器的分類）
+const EVENT_TYPES = {
+  open:             { icon: '🆕', label: '新開倉' },
+  close:            { icon: '📕', label: '關閉部位' },
+  rebalance:        { icon: '🔄', label: '調倉' },
+  fee_claim:        { icon: '💰', label: '領取手續費' },
+  add_liquidity:    { icon: '➕', label: '添加流動性' },
+  remove_liquidity: { icon: '➖', label: '移除流動性' },
+  out_of_range:     { icon: '🚨', label: '價格超出提醒' },
+  range_warning:    { icon: '⚠️', label: '價格偏離提醒' },
+  back_in_range:    { icon: '✅', label: '回到區間內' },
+};
+
+let allEvents = [];
+let activeEventTypes = null; // Set<string>；null 代表尚未初始化（=全選）
+
 function renderEvents(events) {
+  allEvents = (events || []).slice(0, 200);
+  // 哪些類型實際出現過（依 EVENT_TYPES 的順序排列）
+  const present = Object.keys(EVENT_TYPES).filter((t) => allEvents.some((e) => e.type === t));
+  // 也把未知類型歸到清單末端，避免被篩掉看不到
+  for (const e of allEvents) if (!EVENT_TYPES[e.type] && !present.includes(e.type)) present.push(e.type);
+
+  if (activeEventTypes === null) activeEventTypes = new Set(present);
+  else for (const t of present) if (!knownTypesSeen.has(t)) activeEventTypes.add(t); // 新出現的類型預設開啟
+  for (const t of present) knownTypesSeen.add(t);
+
+  renderEventFilters(present);
+  renderEventList();
+}
+
+const knownTypesSeen = new Set();
+
+function renderEventFilters(present) {
+  const box = document.getElementById('eventFilters');
+  if (!box) return;
+  if (present.length <= 1) { box.innerHTML = ''; return; } // 只有一種類型就不顯示篩選器
+  const counts = {};
+  for (const e of allEvents) counts[e.type] = (counts[e.type] || 0) + 1;
+  box.innerHTML = present
+    .map((t) => {
+      const meta = EVENT_TYPES[t] || { icon: '•', label: t };
+      const on = activeEventTypes.has(t);
+      return `<button class="evt-chip${on ? ' active' : ''}" data-type="${t}">${meta.icon} ${meta.label}<span class="cnt">${counts[t] || 0}</span></button>`;
+    })
+    .join('');
+  box.querySelectorAll('.evt-chip').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.type;
+      if (activeEventTypes.has(t)) activeEventTypes.delete(t); else activeEventTypes.add(t);
+      btn.classList.toggle('active');
+      renderEventList();
+    });
+  });
+}
+
+function renderEventList() {
   const el = document.getElementById('events');
-  if (!events.length) { el.innerHTML = '<div class="empty">尚無動作紀錄</div>'; return; }
-  el.innerHTML = events
-    .slice(0, 50)
+  if (!allEvents.length) { el.innerHTML = '<div class="empty">尚無動作紀錄</div>'; return; }
+  const list = allEvents.filter((e) => !activeEventTypes || activeEventTypes.has(e.type)).slice(0, 80);
+  if (!list.length) { el.innerHTML = '<div class="empty">目前篩選條件下沒有紀錄</div>'; return; }
+  el.innerHTML = list
     .map((e) => `<div class="evt"><span class="time">${fmtTime(e.occurredAt)}</span><span class="msg">${stripHtml(e.message)}</span></div>`)
     .join('');
 }

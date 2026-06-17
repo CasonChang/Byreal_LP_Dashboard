@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Byreal LP 績效儀表板</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-  <link rel="stylesheet" href="./styles.css?v=15" />
+  <link rel="stylesheet" href="./styles.css?v=16" />
 </head>
 <body>
   <header class="topbar">
@@ -72,7 +72,10 @@
     </section>
 
     <section class="panel">
-      <div class="panel-head"><h2>近期動作紀錄</h2></div>
+      <div class="panel-head">
+        <h2>近期動作紀錄</h2>
+        <div class="evt-filter" id="eventFilters"></div>
+      </div>
       <div id="events" class="events"></div>
     </section>
 
@@ -95,7 +98,7 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="./config.js?v=15"></script>
-  <script src="./app.js?v=15"></script>
+  <script src="./config.js?v=16"></script>
+  <script src="./app.js?v=16"></script>
 </body>
 </html>

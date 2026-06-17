@@ -33,9 +33,14 @@ const PUSH_TYPES = new Set<LpEvent['type']>([
 
 /**
  * 跑一次完整收集流程。可被 CLI(`npm run collect`)或常駐程式(daemon)重複呼叫。
- * @param pushEvents 是否推播 Telegram（daemon 首輪設 false，只同步狀態、不洗版）
+ * @param pushEvents 是否推播 Telegram
+ * @param emitEvents 是否做事件偵測+寫入。daemon 首輪設 false：因為剛(重新)部署時，
+ *   本地 latest.json 會是 git 裡的舊快照，拿來差分會把現有部位全誤判成「新開倉」。
+ *   首輪只建立基準快照，第二輪起才正常偵測。
  */
-export async function runCollectOnce({ pushEvents = true }: { pushEvents?: boolean } = {}): Promise<void> {
+export async function runCollectOnce(
+  { pushEvents = true, emitEvents = true }: { pushEvents?: boolean; emitEvents?: boolean } = {},
+): Promise<void> {
   assertConfig({ needSupabase: true, needTelegram: true });
   console.log(`[collect] 錢包: ${config.wallets.join(', ')}${config.dryRun ? ' (DRY_RUN)' : ''}`);
 
@@ -47,24 +52,28 @@ export async function runCollectOnce({ pushEvents = true }: { pushEvents?: boole
     `[collect] 部位 ${snap.totals.positionCount} 個（active ${snap.totals.activeCount}，區間內 ${snap.totals.inRangeCount}）｜總倉位 ${usd(snap.totals.liquidityUsd)}｜累計手續費 ${usd(snap.totals.earnedUsd)}｜未領 ${usd(snap.totals.unclaimedFeeUsd)}`,
   );
 
-  const events = detectEvents(snap, prev);
-  console.log(`[collect] 偵測到 ${events.length} 個事件`);
-
-  // 先寫資料，再推播（推播失敗不影響資料）
   await saveSnapshot(snap);
-  await saveEvents(events);
-  await exportJson(snap, events);
 
-  // 推播重要事件
-  const toPush = events.filter((e) => PUSH_TYPES.has(e.type));
-  if (pushEvents) {
-    for (const e of toPush) {
-      await sendTelegram(e.message);
+  let events: LpEvent[] = [];
+  if (emitEvents) {
+    events = detectEvents(snap, prev);
+    console.log(`[collect] 偵測到 ${events.length} 個事件`);
+    await saveEvents(events);
+
+    // 推播重要事件
+    const toPush = events.filter((e) => PUSH_TYPES.has(e.type));
+    if (pushEvents) {
+      for (const e of toPush) {
+        await sendTelegram(e.message);
+      }
+    } else if (toPush.length > 0) {
+      console.log(`[collect] 略過 ${toPush.length} 則推播（僅同步狀態）`);
     }
-  } else if (toPush.length > 0) {
-    console.log(`[collect] 首輪略過 ${toPush.length} 則推播（僅同步狀態，避免重啟洗版）`);
+  } else {
+    console.log('[collect] 首輪略過事件偵測（建立基準快照，避免重啟誤報開倉/調倉）');
   }
 
+  await exportJson(snap, events);
   console.log('[collect] 完成');
 }
 

@@ -39,8 +39,9 @@ let firstCycle = true;
 async function tick(): Promise<void> {
   const now = new Date();
   try {
-    // 首輪只同步狀態、不推播，避免每次重新部署都把舊事件再洗一次版
-    await runCollectOnce({ pushEvents: !firstCycle });
+    // 首輪只建立基準快照、不做事件偵測：
+    // 剛(重新)部署時本地 latest.json 是 git 裡的舊快照，差分會把現有部位全誤判成新開倉。
+    await runCollectOnce({ emitEvents: !firstCycle });
     state.lastCollectAt = now.toISOString();
     state.lastCollectOk = true;
     state.lastError = null;
