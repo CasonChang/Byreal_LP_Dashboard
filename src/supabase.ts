@@ -185,6 +185,23 @@ export async function getLastDailySummary(): Promise<any | null> {
   return data?.summary ?? null;
 }
 
+/** 取得最後一筆每日報告的日期(YYYY-MM-DD，台北)，用來判斷今天是否已發過。 */
+export async function getLastReportDate(): Promise<string | null> {
+  const d = db();
+  if (!d) return null;
+  const { data, error } = await d
+    .from('daily_reports')
+    .select('report_date')
+    .order('report_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn('讀取上次報告日期失敗:', error.message);
+    return null;
+  }
+  return data?.report_date ?? null;
+}
+
 /** 取得近 N 天的事件（給每日報告與前端用）。 */
 export async function getRecentEvents(sinceIso: string): Promise<LpEvent[]> {
   const d = db();

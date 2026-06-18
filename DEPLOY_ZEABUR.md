@@ -52,7 +52,8 @@
 | `TELEGRAM_CHAT_ID` | 你的 chat id | ✅ |
 | `TZ` | `Asia/Taipei` | 建議 |
 | `COLLECT_INTERVAL_MIN` | `10`（要更頻繁可改 `5`） | 可選，預設 10 |
-| `DAILY_REPORT_UTC_HOUR` | `0`（= 台北 08:00） | 可選，預設 0 |
+| `DAILY_REPORT_TAIPEI_HOUR` | `8`（台北幾點送每日報告） | 可選，預設 8 |
+| `SCAN_INTERVAL_HOURS` | `12`（每幾小時跑一次熱門池掃描） | 可選，預設 12 |
 
 存檔後 Zeabur 會自動重新部署。
 

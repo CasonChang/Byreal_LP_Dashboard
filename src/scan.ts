@@ -11,6 +11,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config, assertConfig } from './config.ts';
 import { fetchDailyCloses, dailyVolatility } from './kline.ts';
+import { saveDashboardState } from './supabase.ts';
+import { isDirectRun } from './runtime.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(__dirname, '..', 'docs', 'data');
@@ -29,7 +31,7 @@ interface PoolRow {
   sigmaDaily: number; annVol: number; effScore: number;
 }
 
-async function main() {
+export async function runScanOnce(): Promise<void> {
   assertConfig({});
   // 抓量最大的前 200 個池子
   const raws: any[] = [];
@@ -76,9 +78,18 @@ async function main() {
     );
   });
 
+  const payload = { updatedAt: new Date().toISOString(), pools: ranked };
   await mkdir(DATA_DIR, { recursive: true });
-  await writeFile(resolve(DATA_DIR, 'scan.json'), JSON.stringify({ updatedAt: new Date().toISOString(), pools: ranked }, null, 2));
-  console.log(`\n已寫入 docs/data/scan.json（${ranked.length} 個池子）`);
+  await writeFile(resolve(DATA_DIR, 'scan.json'), JSON.stringify(payload, null, 2));
+  // 寫進 Supabase 給前端直讀（免 commit）
+  await saveDashboardState('scan', payload);
+  console.log(`\n[scan] 已更新（${ranked.length} 個池子）`);
 }
 
-main().catch((e) => { console.error('[scan] 失敗:', e); process.exit(1); });
+// 直接以 `tsx src/scan.ts` 執行時才自動跑；被 daemon import 時不執行。
+if (isDirectRun(import.meta.url)) {
+  runScanOnce().catch((e) => {
+    console.error('[scan] 失敗:', e);
+    process.exit(1);
+  });
+}

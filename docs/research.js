@@ -5,16 +5,37 @@ const HDAYS = { '1w': 5, '1m': 21, '3m': 63, '6m': 126 };
 
 let pools = [];
 
+function sbCfg() {
+  const c = window.BYREAL_CONFIG || {};
+  return c.SUPABASE_URL && c.SUPABASE_ANON_KEY ? c : null;
+}
+
+// 優先讀 Supabase dashboard_state['scan']，讀不到再退回靜態 scan.json
+async function fetchScan() {
+  const c = sbCfg();
+  if (c) {
+    try {
+      const url = `${c.SUPABASE_URL}/rest/v1/dashboard_state?key=eq.scan&select=payload`;
+      const res = await fetch(url, {
+        headers: { apikey: c.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + c.SUPABASE_ANON_KEY },
+        cache: 'no-store',
+      });
+      if (res.ok) { const rows = await res.json(); if (rows && rows[0] && rows[0].payload) return rows[0].payload; }
+    } catch (e) { console.warn('scan Supabase 讀取失敗，退回靜態檔', e); }
+  }
+  const res = await fetch('./data/scan.json?t=' + Date.now());
+  return res.json();
+}
+
 async function load() {
   try {
-    const res = await fetch('./data/scan.json?t=' + Date.now());
-    const j = await res.json();
+    const j = await fetchScan();
     pools = j.pools || [];
     document.getElementById('scanTitle').textContent = `熱門池掃描（${pools.length} 池・${new Date(j.updatedAt).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}）`;
     renderScan();
     fillCalcPools();
   } catch {
-    document.getElementById('scanTable').innerHTML = '<div class="empty">尚無掃描資料（請先在 GitHub Actions 跑「熱門池掃描」）。</div>';
+    document.getElementById('scanTable').innerHTML = '<div class="empty">尚無掃描資料（daemon 啟動後幾分鐘內會產生）。</div>';
   }
   calc();
 }

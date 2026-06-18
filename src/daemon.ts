@@ -3,35 +3,44 @@
  *
  * 取代「不可靠的 GitHub Actions 排程」：
  *   - 每 COLLECT_INTERVAL_MIN 分鐘跑一次收集（抓 Byreal → 算 → 寫 Supabase → Telegram）
- *   - 每天 DAILY_REPORT_UTC_HOUR:00 (UTC) 跑一次每日報告
+ *   - 每天台北 DAILY_REPORT_TAIPEI_HOUR 點過後送一次每日報告（用資料庫判斷今天是否已發，支援補發）
+ *   - 每 SCAN_INTERVAL_HOURS 小時跑一次熱門池掃描（寫進 Supabase 給研究頁面）
  *   - 開一個極簡 HTTP 健康檢查端點（Zeabur 會給網址，打開可看「上次更新時間」確認還活著）
  *
  * 啟動方式：`npm start` 或 `npm run daemon`。
- * 環境變數跟 GitHub Secrets 同一批（WALLET_ADDRESS / SUPABASE_URL /
- * SUPABASE_SERVICE_ROLE_KEY / TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID）。
  */
 
 import { createServer } from 'node:http';
 import { runCollectOnce } from './collect.ts';
 import { runDailyReport } from './daily-report.ts';
+import { runScanOnce } from './scan.ts';
+import { getLastReportDate } from './supabase.ts';
 
 const INTERVAL_MIN = Math.max(1, Number(process.env.COLLECT_INTERVAL_MIN || '10'));
-const REPORT_HOUR_UTC = Number(process.env.DAILY_REPORT_UTC_HOUR ?? '0'); // 0 UTC = 台北 08:00
+const SCAN_INTERVAL_HOURS = Math.max(1, Number(process.env.SCAN_INTERVAL_HOURS || '12'));
+// 每日報告時間（台北小時）。相容舊變數 DAILY_REPORT_UTC_HOUR（會自動 +8 換成台北）。
+const REPORT_TAIPEI_HOUR =
+  process.env.DAILY_REPORT_TAIPEI_HOUR != null
+    ? Number(process.env.DAILY_REPORT_TAIPEI_HOUR)
+    : (Number(process.env.DAILY_REPORT_UTC_HOUR ?? '0') + 8) % 24;
 const PORT = Number(process.env.PORT || '8080');
 
 const state = {
   startedAt: new Date().toISOString(),
   intervalMin: INTERVAL_MIN,
-  reportHourUtc: REPORT_HOUR_UTC,
+  reportTaipeiHour: REPORT_TAIPEI_HOUR,
   lastCollectAt: null as string | null,
   lastCollectOk: null as boolean | null,
   lastError: null as string | null,
   collectCount: 0,
-  lastReportDate: '' as string, // 已處理過的 UTC 日期，避免同一天重複發報告
+  lastScanAt: null as string | null,
+  lastReportDate: '' as string, // 已發過報告的台北日期（YYYY-MM-DD），開機時由資料庫帶入
 };
 
-function utcDate(d = new Date()): string {
-  return d.toISOString().slice(0, 10);
+/** 取得「現在」的台北日期與小時。 */
+function taipeiNow(d = new Date()): { date: string; hour: number } {
+  const s = d.toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }); // "2026-06-17 08:30:00"
+  return { date: s.slice(0, 10), hour: Number(s.slice(11, 13)) };
 }
 
 let firstCycle = true;
@@ -53,15 +62,25 @@ async function tick(): Promise<void> {
   }
   firstCycle = false;
 
-  // 每日報告：進入報告時段，且今天還沒發過
-  if (now.getUTCHours() === REPORT_HOUR_UTC && state.lastReportDate !== utcDate(now)) {
-    state.lastReportDate = utcDate(now);
+  // 每日報告：台北時間過了報告時間、且今天還沒發過 → 送出（支援補發；用資料庫去重）
+  const tp = taipeiNow(now);
+  if (tp.hour >= REPORT_TAIPEI_HOUR && state.lastReportDate !== tp.date) {
     try {
       await runDailyReport();
-      console.log('[daemon] 每日報告已送出');
+      state.lastReportDate = tp.date;
+      console.log(`[daemon] 每日報告已送出（${tp.date}）`);
     } catch (err) {
-      console.error('[daemon] 每日報告失敗:', err);
+      console.error('[daemon] 每日報告失敗（下一輪會再試）:', err);
     }
+  }
+}
+
+async function scanTick(): Promise<void> {
+  try {
+    await runScanOnce();
+    state.lastScanAt = new Date().toISOString();
+  } catch (err) {
+    console.error('[daemon] 熱門池掃描失敗:', err);
   }
 }
 
@@ -75,17 +94,23 @@ function startHealthServer(): void {
 }
 
 async function main(): Promise<void> {
-  const taipeiHour = (REPORT_HOUR_UTC + 8) % 24;
   console.log(
-    `[daemon] 啟動｜每 ${INTERVAL_MIN} 分鐘收集一次、每日報告 ${REPORT_HOUR_UTC}:00 UTC（台北 ${taipeiHour}:00）`,
+    `[daemon] 啟動｜每 ${INTERVAL_MIN} 分鐘收集、每日報告 台北 ${REPORT_TAIPEI_HOUR}:00、每 ${SCAN_INTERVAL_HOURS} 小時掃描`,
   );
-  // 首次部署當天不補發每日報告（避免重啟即重發），隔天報告時段起正常運作。
-  state.lastReportDate = utcDate();
+  // 開機時從資料庫帶入「上次報告日期」，避免重啟重發、也能在錯過時補發。
+  state.lastReportDate = (await getLastReportDate()) ?? '';
   startHealthServer();
+
   await tick();
   setInterval(() => {
     void tick();
   }, INTERVAL_MIN * 60_000);
+
+  // 掃描：啟動先跑一次，之後固定間隔
+  void scanTick();
+  setInterval(() => {
+    void scanTick();
+  }, SCAN_INTERVAL_HOURS * 3600_000);
 }
 
 void main();

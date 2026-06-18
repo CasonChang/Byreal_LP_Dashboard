@@ -1,16 +1,16 @@
-name: 熱門池掃描
+name: 熱門池掃描（備援・手動觸發）
 
+# 熱門池掃描已改由 Zeabur 常駐 daemon 負責（每 12 小時，寫進 Supabase）。
+# 這裡只保留手動觸發當備援。自動排程已停用，且不再 commit scan.json（改寫 Supabase）。
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 1 * * *' # 每日 01:00 UTC
 
 concurrency:
   group: byreal-data
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   scan:
@@ -22,15 +22,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: 跑掃描
+      - name: 跑掃描（寫進 Supabase dashboard_state['scan']）
         env:
           WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npx tsx src/scan.ts
-      - name: 提交 scan.json
-        run: |
-          git config user.name "byreal-bot"
-          git config user.email "actions@github.com"
-          git add docs/data/scan.json
-          if git diff --staged --quiet; then echo "無變更"; exit 0; fi
-          git commit -m "chore: 更新熱門池掃描 [skip ci]"
-          for i in 1 2 3 4; do git pull --rebase origin main && git push && break; echo retry $i; sleep $((2**i)); done
