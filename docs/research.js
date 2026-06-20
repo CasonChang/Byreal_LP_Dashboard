@@ -4,6 +4,8 @@ const STYLE_Z = { conservative: { z: 2.0, prob: 85 }, balanced: { z: 1.5, prob: 
 const HDAYS = { '1w': 5, '1m': 21, '3m': 63, '6m': 126 };
 
 let pools = [];
+let scanWindow = 'composite'; // 'composite' | '1w' | '1m' | '3m'
+const WIN_LABEL = { composite: '綜合', '1w': '1週', '1m': '1月', '3m': '3月' };
 
 function sbCfg() {
   const c = window.BYREAL_CONFIG || {};
@@ -27,11 +29,20 @@ async function fetchScan() {
   return res.json();
 }
 
+// 相容舊版 scan.json（沒有 win 欄位）
+function normalizePool(c) {
+  if (c.win) return c;
+  const w = { days: 0, feeApr: c.feeApr || 0, annVol: c.annVol || 0, effScore: c.effScore || 0, volCv: 0 };
+  return { ...c, feeApr24h: c.feeApr || 0, historyDays: 0, sigmaDaily: c.sigmaDaily || 0, win: { '1w': w, '1m': w, '3m': w }, compositeScore: c.effScore || 0 };
+}
+
 async function load() {
   try {
     const j = await fetchScan();
-    pools = j.pools || [];
-    document.getElementById('scanTitle').textContent = `熱門池掃描（${pools.length} 池・${new Date(j.updatedAt).toLocaleDateString('zh-TW', { timeZone: 'Asia/Taipei' })}）`;
+    pools = (j.pools || []).map(normalizePool);
+    const t = new Date(j.updatedAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    document.getElementById('scanTitle').textContent = `熱門池長期掃描（${pools.length} 池・更新 ${t}）`;
+    renderScanTabs();
     renderScan();
     fillCalcPools();
   } catch {
@@ -40,19 +51,43 @@ async function load() {
   calc();
 }
 
+function renderScanTabs() {
+  const box = document.getElementById('scanWindowTabs');
+  if (!box) return;
+  box.innerHTML = '<span class="tabs-label">評分窗口</span>' +
+    ['composite', '1w', '1m', '3m'].map((w) => `<button data-w="${w}" class="${w === scanWindow ? 'active' : ''}">${WIN_LABEL[w]}</button>`).join('');
+  box.querySelectorAll('button').forEach((b) => { b.onclick = () => { scanWindow = b.dataset.w; renderScanTabs(); renderScan(); }; });
+}
+
+// 取目前選定窗口要顯示的數據
+function poolMetrics(c) {
+  if (scanWindow === 'composite') {
+    const w = c.win['1m'] || {};
+    return { feeApr: w.feeApr || 0, annVol: w.annVol || 0, score: c.compositeScore || 0 };
+  }
+  const w = c.win[scanWindow] || {};
+  return { feeApr: w.feeApr || 0, annVol: w.annVol || 0, score: w.effScore || 0 };
+}
+
 function renderScan() {
-  const head = `<div class="ct-row ct-head"><span>#</span><span>交易對</span><span>手續費年化</span><span>TVL</span><span>24h量</span><span>週轉%</span><span>年化波動</span><span>效率分</span></div>`;
-  const body = pools.map((c, i) => {
-    const small = c.tvlUsd < 100000;
+  const scoreHdr = scanWindow === 'composite' ? '綜合分' : '效率分';
+  const sorted = [...pools].sort((a, b) => poolMetrics(b).score - poolMetrics(a).score);
+  const head = `<div class="ct-row ct-head"><span>#</span><span>交易對</span><span>手續費年化</span><span>TVL</span><span>24h量</span><span>年化波動</span><span>${scoreHdr}</span><span>資料天</span></div>`;
+  const body = sorted.map((c, i) => {
+    const m = poolMetrics(c);
+    const warns = [];
+    if (c.tvlUsd < 100000) warns.push('TVL過小、易被操縱');
+    if ((c.historyDays || 0) < 30) warns.push('歷史<30天、長期分僅供參考');
+    const warn = warns.join('；');
     return `<div class="ct-row">
       <span>${i + 1}</span>
-      <span class="pair-cell">${c.pair}${small ? ' <em title="TVL過小、風險高">⚠️</em>' : ''}</span>
-      <span class="pos-val">${c.feeApr.toFixed(0)}%</span>
+      <span class="pair-cell">${c.pair}${warn ? ` <em title="${warn}">⚠️</em>` : ''}</span>
+      <span class="pos-val">${m.feeApr.toFixed(0)}%</span>
       <span>${fmtUsd(c.tvlUsd)}</span>
       <span>${fmtUsd(c.vol24hUsd)}</span>
-      <span>${c.turnover.toFixed(0)}</span>
-      <span>${c.annVol.toFixed(0)}%</span>
-      <span class="pos-val">${c.effScore.toFixed(2)}</span>
+      <span>${m.annVol.toFixed(0)}%</span>
+      <span class="pos-val">${m.score.toFixed(2)}</span>
+      <span>${c.historyDays || 0}</span>
     </div>`;
   }).join('');
   document.getElementById('scanTable').innerHTML = head + body;
@@ -61,7 +96,7 @@ function renderScan() {
 function fillCalcPools() {
   const sel = document.getElementById('calcPool');
   sel.innerHTML = '<option value="">— 自填波動度 —</option>' +
-    pools.map((c) => `<option value="${c.annVol}">${c.pair}（年化波動 ${c.annVol.toFixed(0)}%）</option>`).join('');
+    pools.map((c) => { const av = (c.win && c.win['1m'] && c.win['1m'].annVol) || 0; return `<option value="${av}">${c.pair}（年化波動 ${av.toFixed(0)}%）</option>`; }).join('');
   sel.onchange = () => {
     if (sel.value) document.getElementById('calcSigma').value = (parseFloat(sel.value) / Math.sqrt(365)).toFixed(2);
     calc();

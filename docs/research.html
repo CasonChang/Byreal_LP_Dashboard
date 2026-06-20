@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Byreal LP 研究室</title>
-  <link rel="stylesheet" href="./styles.css?v=18" />
+  <link rel="stylesheet" href="./styles.css?v=19" />
 </head>
 <body>
   <header class="topbar">
@@ -20,8 +20,11 @@
 
   <main id="app">
     <section class="panel">
-      <div class="panel-head"><h2 id="scanTitle">熱門池掃描</h2></div>
-      <p class="hint">效率分 = 手續費年化 ÷ 年化波動度（每承受一單位波動換到多少手續費，越高越甜）。週轉率 = 24h量 ÷ TVL（越高手續費越多）。⚠️ TVL 過小的高 APR 池風險高（易被操縱），已標示。</p>
+      <div class="panel-head">
+        <h2 id="scanTitle">熱門池長期掃描</h2>
+        <div class="tabs" id="scanWindowTabs"></div>
+      </div>
+      <p class="hint">手續費年化與波動取自該池<b>過去日 K 線</b>的窗口平均（1週/1月/3月），<b>不是單日</b>，避免單日行情暴量灌高分數。效率分 = 手續費年化 ÷ 年化波動度。<b>綜合分</b> = 長期效率加權（1月 50% + 3月 35% + 1週 15%）× 量穩定度（量越穩分越高），用來挑<b>長期</b>適合的 LP 標的。⚠️ 標示 TVL 過小或歷史不足 30 天（長期分僅供參考）。</p>
       <div id="scanTable" class="closed-table"></div>
     </section>
 
@@ -62,7 +65,7 @@
     <span>資料來源：Byreal API</span>
   </footer>
 
-  <script src="./config.js?v=18"></script>
-  <script src="./research.js?v=18"></script>
+  <script src="./config.js?v=19"></script>
+  <script src="./research.js?v=19"></script>
 </body>
 </html>
