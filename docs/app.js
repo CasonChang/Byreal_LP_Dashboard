@@ -420,7 +420,27 @@ function renderChart(equity, metric) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (c) => {
+              const v = c.parsed.y;
+              if (metric === 'feeApr') return `${CHART_TITLE[metric]}：${(v ?? 0).toFixed(1)}%`;
+              if (metric === 'dailyFeeUsd') {
+                const row = equity[c.dataIndex] || {};
+                const liq = row.liquidityUsd || 0;
+                const apr = liq > 0 ? (v / liq) * 365 * 100 : 0;
+                const lines = [`當日手續費：${fmtUsd(v)}`];
+                if (liq > 0) lines.push(`當天總倉位：${fmtUsd(liq)}`, `當日年化：~${apr.toFixed(1)}%`);
+                if (c.dataIndex === equity.length - 1) lines.push('（今日累積中，年化僅參考）');
+                return lines;
+              }
+              return `${CHART_TITLE[metric]}：${fmtUsd(v)}`;
+            },
+          },
+        },
+      },
       scales: {
         x: { grid: { color: '#1e2741' }, ticks: { color: '#8a98b5', maxTicksLimit: 10 } },
         y: { grid: { color: '#1e2741' }, ticks: { color: '#8a98b5' } },
