@@ -283,11 +283,11 @@ function perfMetrics(p) {
   const ageNote = young ? '⚠️ 持倉不足 2 天，年化是把短期速率外推一整年，數字會嚴重偏大、僅供參考。' : '';
   const ut = p.unclaimedTokens || [];
   const breakdown = ut.length ? '；未領明細｜' + ut.map((t) => `${t.symbol} ${fmtAmt(t.amount)}（${fmtUsd(t.usd)}）`).join('；') : '';
-  const feeTip = `此部位開倉至今手續費（已領 ${fmtUsd(p.claimedFeeUsd ?? 0)} ＋ 未領 ${fmtUsd(p.unclaimedFeeUsd ?? 0)}）。即使領出賣掉仍記得（鏈上累計值）${breakdown}`;
   return [
     mtr('倉位價值', fmtUsd(p.liquidityUsd), '此部位目前現值（兩種代幣數量 × 現價）。'),
     mtr('投入本金', fmtUsd(p.depositUsd ?? 0), '開倉至今投入此部位的本金（含後續加倉）。'),
-    mtr('累積手續費', fmtUsd(p.earnedUsd), feeTip, 'pos-val'),
+    mtr('未領 / 累計手續費', `${fmtUsd(p.unclaimedFeeUsd ?? 0)} / ${fmtUsd(p.earnedUsd ?? 0)}`,
+      `左＝目前可領取的「未領」；右＝開倉至今「累計」(已領 ${fmtUsd(p.claimedFeeUsd ?? 0)} ＋ 未領 ${fmtUsd(p.unclaimedFeeUsd ?? 0)})。即使領出賣掉仍記得(鏈上累計值)${breakdown}`, 'pos-val'),
     mtr('手續費年化', fmtPct(p.realApr ?? 0) + (young ? ' ⚠️' : ''), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。' + ageNote, (p.realApr ?? 0) > 0 ? 'pos-val' : ''),
     mtr('損益(不含手續費)', fmtUsd(p.pnlUsd), '代幣價格變動 / 無常損失（IL），不含手續費。', cls(p.pnlUsd)),
     mtr('總報酬', fmtUsd(p.totalReturnUsd ?? ((p.earnedUsd ?? 0) + (p.pnlUsd ?? 0))), '累積手續費 ＋ 損益的合計金額（你這筆實際賺賠多少）。', cls(p.totalReturnUsd ?? ((p.earnedUsd ?? 0) + (p.pnlUsd ?? 0)))),
