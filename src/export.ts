@@ -7,7 +7,7 @@ import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { LpEvent, PortfolioSnapshot, PositionMetric } from './types.ts';
-import { getDailyEquityHistory, getRecentEvents, saveDashboardState } from './supabase.ts';
+import { getDailyEquityHistory, getRecentEvents, saveDashboardState, saveDailyEquity } from './supabase.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(__dirname, '..', 'docs', 'data');
@@ -31,10 +31,13 @@ export async function exportJson(snap: PortfolioSnapshot, recentEvents: LpEvent[
   // 最新快照（前端首頁主要資料來源）
   await writeFile(resolve(DATA_DIR, 'latest.json'), JSON.stringify(snap, null, 2));
 
+  // 先寫入/更新「今天」的每日聚合，再撈歷史（確保圖表一定含今天，且可長期保存）
+  await saveDailyEquity(snap);
+
   // 歷史：權益曲線（每日）+ 近 30 天事件。
   // 一律從 DB 撈近 30 天完整歷史（本輪偵測到的事件在呼叫此函式前已 saveEvents 寫入 DB，會被含括），
   // 避免「本輪有事件就只輸出本輪、把歷史洗掉」。DB 撈不到才退回用傳入的本輪事件。
-  const equity = await getDailyEquityHistory(90);
+  const equity = await getDailyEquityHistory(365);
   let events = await getRecentEvents(new Date(Date.now() - 30 * 86400_000).toISOString());
   if (events.length === 0 && recentEvents.length > 0) events = recentEvents;
 

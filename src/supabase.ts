@@ -144,6 +144,29 @@ export async function saveDashboardState(key: string, payload: unknown): Promise
   if (error) console.warn(`寫入 dashboard_state[${key}] 失敗（是否已跑 dashboard_state.sql？）:`, error.message);
 }
 
+/**
+ * 寫入/更新「今天」的每日聚合一筆（依台北日期 upsert）。
+ * 每輪收集都呼叫：當天那筆會持續被更新，跨日後自然定格成那天的最終值。
+ * 一天只有一筆 → 看數月/數年歷史也不會撞到 1000 筆讀取上限。
+ * 需先在 Supabase 跑 daily_equity.sql；未建表時只警告、不中斷。
+ */
+export async function saveDailyEquity(snap: PortfolioSnapshot): Promise<void> {
+  const d = db();
+  if (!d) return;
+  const date = new Date(snap.capturedAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+  const row = {
+    date,
+    liquidity_usd: snap.totals.liquidityUsd,
+    lifetime_fees_usd: snap.strategy?.lifetimeFeesUsd ?? snap.totals.earnedUsd,
+    pnl_usd: snap.strategy?.lifetimePnlUsd ?? snap.totals.pnlUsd,
+    fee_apr: snap.strategy?.feeApr ?? snap.totals.weightedApr,
+    total_apr: snap.strategy?.totalReturnApr ?? 0,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await d.from('daily_equity').upsert(row, { onConflict: 'date' });
+  if (error) console.warn('寫入 daily_equity 失敗（是否已跑 daily_equity.sql？）:', error.message);
+}
+
 export async function saveEvents(events: LpEvent[]): Promise<void> {
   const d = db();
   if (!d || events.length === 0) return;
@@ -236,12 +259,43 @@ export async function getDailyEquityHistory(days = 90): Promise<
 > {
   const d = db();
   if (!d) return [];
+
+  const addDailyFee = (rows: Array<any>) => {
+    rows.sort((a, b) => (a.date < b.date ? -1 : 1)); // 由舊到新
+    for (let i = 1; i < rows.length; i++) {
+      rows[i].dailyFeeUsd = Math.max(0, rows[i].lifetimeFeesUsd - rows[i - 1].lifetimeFeesUsd);
+    }
+    return rows;
+  };
+
+  // ===== 1) 優先讀「每日聚合表」daily_equity：一天一筆，可看數月~數年，不受 1000 筆上限影響 =====
+  const sinceDate = new Date(Date.now() - days * 86400_000).toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+  const daily = await d
+    .from('daily_equity')
+    .select('date,liquidity_usd,lifetime_fees_usd,pnl_usd,fee_apr,total_apr')
+    .gte('date', sinceDate)
+    .order('date', { ascending: true })
+    .limit(2000);
+  if (!daily.error && daily.data && daily.data.length > 0) {
+    return addDailyFee(
+      daily.data.map((r: any) => ({
+        date: r.date,
+        liquidityUsd: Number(r.liquidity_usd),
+        lifetimeFeesUsd: Number(r.lifetime_fees_usd ?? 0),
+        pnlUsd: Number(r.pnl_usd ?? 0),
+        feeApr: Number(r.fee_apr ?? 0),
+        totalApr: Number(r.total_apr ?? 0),
+        dailyFeeUsd: 0,
+      })),
+    );
+  }
+
+  // ===== 2) 退回：尚未建 daily_equity 時，直接從 raw snapshots 聚合 =====
+  // 由新到舊 + 明確 limit，避免撞到 PostgREST 預設 1000 筆上限（一天 ~144 筆，由舊到新+預設1000 會把近期截掉）。
   const since = new Date(Date.now() - days * 86400_000).toISOString();
   const fullCols =
     'captured_at,total_liquidity_usd,total_earned_usd,total_pnl_usd,weighted_apr,strategy_fees_usd,strategy_pnl_usd,strategy_fee_apr,strategy_total_apr';
-  // ⚠️ 由新到舊 + 明確 limit：避免撞到 PostgREST 預設 1000 筆上限。
-  // daemon 每 10 分鐘存一筆(一天 ~144 筆)，若用「由舊到新 + 預設1000」會只拿到最舊的~7天、把近期截掉。
-  const LIMIT = 6000; // 約 40 天 @ 10 分鐘/筆，且一定包含「今天」
+  const LIMIT = 6000; // 約 40 天 @ 10 分鐘/筆
   const first = await d
     .from('snapshots')
     .select(fullCols)
@@ -251,7 +305,7 @@ export async function getDailyEquityHistory(days = 90): Promise<
   let data: any[] | null = first.data as any;
   let error: any = first.error;
   if (error) {
-    // 尚未跑 migration → 退回基本欄位
+    // 尚未跑策略欄位 migration → 退回基本欄位
     const second = await d
       .from('snapshots')
       .select('captured_at,total_liquidity_usd,total_earned_usd,total_pnl_usd,weighted_apr')
@@ -268,23 +322,15 @@ export async function getDailyEquityHistory(days = 90): Promise<
     const day = new Date(r.captured_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
     if (!byDay.has(day)) byDay.set(day, r); // data 由新到舊 → 第一個遇到的即當天最新一筆
   }
-
-  const rows = [...byDay.entries()]
-    .map(([date, r]) => ({
+  return addDailyFee(
+    [...byDay.entries()].map(([date, r]) => ({
       date,
       liquidityUsd: Number(r.total_liquidity_usd),
-      // 累計手續費優先用策略級(含已關閉)；舊資料退回 active-only
       lifetimeFeesUsd: Number(r.strategy_fees_usd ?? r.total_earned_usd ?? 0),
       pnlUsd: Number(r.strategy_pnl_usd ?? r.total_pnl_usd ?? 0),
       feeApr: Number(r.strategy_fee_apr ?? r.weighted_apr ?? 0),
       totalApr: Number(r.strategy_total_apr ?? 0),
       dailyFeeUsd: 0,
-    }))
-    .sort((a, b) => (a.date < b.date ? -1 : 1)); // 由舊到新（給日差計算與圖表）
-
-  // 每日手續費 = 累計手續費的日差（不會因關倉而變負，故 clamp 0）
-  for (let i = 1; i < rows.length; i++) {
-    rows[i].dailyFeeUsd = Math.max(0, rows[i].lifetimeFeesUsd - rows[i - 1].lifetimeFeesUsd);
-  }
-  return rows;
+    })),
+  );
 }
