@@ -59,6 +59,30 @@ export async function fetchDailyBars(poolAddress: string, tokenAddress: string, 
     .filter((b) => Number.isFinite(b.close) && b.close > 0);
 }
 
+/** 取得近 days 天的日 K（含時間戳 ms 與收盤），給「回推開倉當日幣價」用。 */
+export async function fetchDailyBarsT(poolAddress: string, tokenAddress: string, days = 60): Promise<Array<{ t: number; close: number }>> {
+  if (!poolAddress || !tokenAddress) return [];
+  const end = Math.floor(Date.now() / 1000);
+  const start = end - days * 86400;
+  const url = new URL(config.byrealApiUrl + '/byreal/api/dex/v2/kline/query-ui');
+  url.searchParams.set('poolAddress', poolAddress);
+  url.searchParams.set('tokenAddress', tokenAddress);
+  url.searchParams.set('klineType', '1d');
+  url.searchParams.set('startTime', String(start));
+  url.searchParams.set('endTime', String(end));
+  const res = await fetch(url.toString(), { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`kline ${res.status}`);
+  const j: any = await res.json();
+  const data: any[] = j?.result?.data || [];
+  return data
+    .map((k) => {
+      let t = Number(k.t ?? k.time ?? 0);
+      if (t > 0 && t < 1e12) t *= 1000; // 秒 → 毫秒
+      return { t, close: parseFloat(k.c ?? k.close ?? '0') };
+    })
+    .filter((b) => b.t > 0 && Number.isFinite(b.close) && b.close > 0);
+}
+
 /** 由日對數報酬算「近 window 天」的滾動日波動度，回傳每天一個值（給 regime 濾網用）。 */
 export function rollingVolatility(closes: number[], window = 7): number[] {
   const out: number[] = new Array(closes.length).fill(0);

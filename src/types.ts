@@ -101,6 +101,7 @@ export interface PositionMetric {
   totalReturnUsd: number; // 總報酬 = 累計手續費 + 持倉損益
   totalReturnApr: number; // 總報酬年化（含手續費+損益）
   ageDays: number; // 部位存在天數
+  entryPrice?: number; // 開倉當日幣價（K 線回推，IL 參考用）
   pnlUsd: number;
   pnlPct: number;
   apr: number; // 池子預估 APR（fallback）

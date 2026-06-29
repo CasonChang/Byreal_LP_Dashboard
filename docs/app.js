@@ -25,6 +25,18 @@ const fmtAmt = (n) => (n >= 1 ? n.toLocaleString('en-US', { maximumFractionDigit
 // 一個帶 tooltip（滑鼠移過去顯示計算方式）的指標小卡
 const mtr = (k, v, tip, valCls = '') =>
   `<div class="metric"><div class="k">${k}${tip ? ` <span class="info" data-tip="${tip}">ⓘ</span>` : ''}</div><div class="v ${valCls}">${v}</div></div>`;
+
+// 「開倉價」小字（接在投入本金後）：顯示開倉當日幣價 + 現價相對漲跌，作 IL 參考
+function entrySub(p) {
+  const e = p.entryPrice;
+  if (!e || !(e > 0)) return '';
+  const cur = p.currentPrice;
+  const chg = cur > 0 ? ((cur - e) / e) * 100 : null;
+  const chgHtml = chg != null
+    ? `（現價 <span class="${chg >= 0 ? 'pos-val' : 'neg-val'}">${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%</span>）`
+    : '';
+  return ` <span class="sub">開倉價 ${fmtPrice(e)}${chgHtml}</span>`;
+}
 const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '—');
 const fmtTime = (iso) =>
   new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -285,7 +297,8 @@ function perfMetrics(p) {
   const breakdown = ut.length ? '；未領明細｜' + ut.map((t) => `${t.symbol} ${fmtAmt(t.amount)}（${fmtUsd(t.usd)}）`).join('；') : '';
   return [
     mtr('倉位價值', fmtUsd(p.liquidityUsd), '此部位目前現值（兩種代幣數量 × 現價）。'),
-    mtr('投入本金', fmtUsd(p.depositUsd ?? 0), '開倉至今投入此部位的本金（含後續加倉）。'),
+    mtr('投入本金', fmtUsd(p.depositUsd ?? 0) + entrySub(p),
+      '開倉至今投入此部位的本金（含後續加倉）。「開倉價」為依 K 線回推的開倉當日幣價，與現價對比可粗估無常損失(IL)方向：幣價跌→部位被動換成更多該幣→有 IL。復投/加倉不影響此開倉價。'),
     mtr('未領 / 累計手續費', `${fmtUsd(p.unclaimedFeeUsd ?? 0)} / ${fmtUsd(p.earnedUsd ?? 0)}`,
       `左＝目前可領取的「未領」；右＝開倉至今「累計」(已領 ${fmtUsd(p.claimedFeeUsd ?? 0)} ＋ 未領 ${fmtUsd(p.unclaimedFeeUsd ?? 0)})。即使領出賣掉仍記得(鏈上累計值)${breakdown}`, 'pos-val'),
     mtr('手續費年化', fmtPct(p.realApr ?? 0) + (young ? ' ⚠️' : ''), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。' + ageNote, (p.realApr ?? 0) > 0 ? 'pos-val' : ''),

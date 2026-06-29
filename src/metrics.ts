@@ -5,7 +5,7 @@
 import { config } from './config.ts';
 import { listPositions, getPoolDetail, type PoolDetail, type PoolMapFlat } from './byreal.ts';
 import { ticksToPriceRange } from './tick.ts';
-import { fetchDailyCloses, dailyVolatility, allSuggestions } from './kline.ts';
+import { fetchDailyBarsT, dailyVolatility, allSuggestions } from './kline.ts';
 import type { PortfolioSnapshot, PositionMetric, RiskLevel, ClosedPositionRow, StrategySummary } from './types.ts';
 
 function riskFromDistance(inRange: boolean, nearestPct: number): RiskLevel {
@@ -45,17 +45,29 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
     }),
   );
 
-  // 抓 K 線算波動度（給區間建議用）；失敗不影響主流程
+  // 每個池子需要的天數 = 該池最老 active 部位的年齡 + buffer（用來回推開倉當日幣價）
+  const poolNeedDays = new Map<string, number>();
+  for (const { raw } of rawAll) {
+    const ageMs = raw.positionAgeMs || (raw.openTime ? Date.now() - raw.openTime : 0);
+    const days = Math.ceil(ageMs / 86_400_000) + 5;
+    poolNeedDays.set(raw.poolAddress, Math.max(poolNeedDays.get(raw.poolAddress) ?? 35, days));
+  }
+
+  // 抓 K 線：算波動度（區間建議用）＋ 保留含時間戳的 bars（回推開倉價用）；失敗不影響主流程
   const poolSigma = new Map<string, number>();
+  const poolBars = new Map<string, Array<{ t: number; close: number }>>();
   await Promise.all(
     uniquePools.map(async (addr) => {
       try {
         const tokenA = poolTokenA.get(addr) || '';
-        const closes = await fetchDailyCloses(addr, tokenA, 30);
-        poolSigma.set(addr, dailyVolatility(closes));
+        const need = Math.min(370, poolNeedDays.get(addr) ?? 35);
+        const bars = await fetchDailyBarsT(addr, tokenA, need);
+        poolBars.set(addr, bars);
+        poolSigma.set(addr, dailyVolatility(bars.slice(-30).map((b) => b.close)));
       } catch (e) {
         console.warn(`K 線抓取失敗 ${addr}:`, (e as Error).message);
         poolSigma.set(addr, 0);
+        poolBars.set(addr, []);
       }
     }),
   );
@@ -100,6 +112,22 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
     // 部位存在時間 → 年化
     const ageMs = raw.positionAgeMs || (raw.openTime ? Date.now() - raw.openTime : 0);
     const ageDays = ageMs > 0 ? ageMs / 86_400_000 : 0;
+
+    // 開倉當日幣價（用 K 線回推：找時間最接近 openTime 的那根日 K 收盤）。僅供 IL 參考，復投不計。
+    let openMs = 0;
+    if (raw.openTime) openMs = raw.openTime < 1e12 ? raw.openTime * 1000 : raw.openTime;
+    else if (ageMs > 0) openMs = Date.now() - ageMs;
+    let entryPrice = 0;
+    const bars = poolBars.get(raw.poolAddress) || [];
+    if (openMs > 0 && bars.length) {
+      let best = bars[0];
+      let bestDiff = Infinity;
+      for (const b of bars) {
+        const diff = Math.abs(b.t - openMs);
+        if (diff < bestDiff) { bestDiff = diff; best = b; }
+      }
+      entryPrice = best.close;
+    }
     const YEAR_MS = 365 * 86_400_000;
     const annualize = (value: number) =>
       ageMs > 0 && depositUsd > 0 ? (value / depositUsd) * (YEAR_MS / ageMs) * 100 : 0;
@@ -139,6 +167,7 @@ export async function buildSnapshot(wallets: string[]): Promise<PortfolioSnapsho
       totalReturnUsd,
       totalReturnApr,
       ageDays,
+      entryPrice,
       pnlUsd: pricePnlUsd, // 損益(不含手續費)
       pnlPct: depositUsd > 0 ? (pricePnlUsd / depositUsd) * 100 : 0,
       // position/list 的部位 APR 多半為 null，退回池子 24h 手續費 APR 作為預估
