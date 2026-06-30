@@ -26,16 +26,33 @@ const fmtAmt = (n) => (n >= 1 ? n.toLocaleString('en-US', { maximumFractionDigit
 const mtr = (k, v, tip, valCls = '') =>
   `<div class="metric"><div class="k">${k}${tip ? ` <span class="info" data-tip="${tip}">ⓘ</span>` : ''}</div><div class="v ${valCls}">${v}</div></div>`;
 
-// 「開倉價」小字（接在投入本金後）：顯示開倉當日幣價 + 現價相對漲跌，作 IL 參考
+// 成本價 / 損益打平價：解 V(p)=本金，其中 V(p)=L·(2√p − p/√pb − √pa)，tokenB=USDC≈$1。
+// 路徑無關、精確，且自動含復投成本。價格回到此處 → 損益(不含手續費)=0、IL 打平。
+function breakevenPrice(p) {
+  const liq = p.liquidityUsd, dep = p.depositUsd, pn = p.currentPrice, pa = p.priceLower, pb = p.priceUpper;
+  if (!(liq > 0) || !(dep > 0) || !(pn > 0) || !(pa > 0) || !(pb > pa)) return null;
+  if (pn <= pa || pn >= pb) return null; // 出界時此公式不適用
+  const sa = Math.sqrt(pa), sb = Math.sqrt(pb);
+  const fNow = 2 * Math.sqrt(pn) - pn / sb - sa;
+  if (!(fNow > 0)) return null;
+  const target = fNow * (dep / liq);     // 想讓 V(p)=本金 → f(p)=fNow×(本金/現值)
+  const disc = pb - sb * (sa + target);  // u² − 2·sb·u + sb·(sa+target)=0 的判別式/4
+  if (disc < 0) return null;
+  const u = sb - Math.sqrt(disc);        // 取 p≤pb 的根
+  const pe = u * u;
+  return pe > 0 ? pe : null;
+}
+
+// 成本價小字（接在投入本金後）：現價相對成本價的漲跌（跌=紅、有 IL；漲=綠）
 function entrySub(p) {
-  const e = p.entryPrice;
-  if (!e || !(e > 0)) return '';
+  const be = breakevenPrice(p);
+  if (be == null) return '';
   const cur = p.currentPrice;
-  const chg = cur > 0 ? ((cur - e) / e) * 100 : null;
+  const chg = cur > 0 ? ((cur - be) / be) * 100 : null;
   const chgHtml = chg != null
     ? `（現價 <span class="${chg >= 0 ? 'pos-val' : 'neg-val'}">${chg >= 0 ? '+' : ''}${chg.toFixed(1)}%</span>）`
     : '';
-  return ` <span class="sub">開倉價 ${fmtPrice(e)}${chgHtml}</span>`;
+  return ` <span class="sub">成本價 ${fmtPrice(be)}${chgHtml}</span>`;
 }
 const shortAddr = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '—');
 const fmtTime = (iso) =>
@@ -298,7 +315,8 @@ function perfMetrics(p) {
   return [
     mtr('倉位價值', fmtUsd(p.liquidityUsd), '此部位目前現值（兩種代幣數量 × 現價）。'),
     mtr('投入本金', fmtUsd(p.depositUsd ?? 0) + entrySub(p),
-      '開倉至今投入此部位的本金（含後續加倉）。「開倉價」為依 K 線回推的開倉當日幣價，與現價對比可粗估無常損失(IL)方向：幣價跌→部位被動換成更多該幣→有 IL。復投/加倉不影響此開倉價。'),
+      '開倉至今投入此部位的本金（含復投）。「成本價」＝損益(不含手續費)歸零的幣價，由「目前倉位現值／本金／上下限」反推，路徑無關且精確：價格回到這裡，IL 就打平。現價在成本價之上＝正 price PnL；之下＝有 IL。已含復投成本。'
+      + (p.entryPrice ? ` 另：K 線開倉日約 ${fmtPrice(p.entryPrice)}（粗略、受單日波動影響）。` : '')),
     mtr('未領 / 累計手續費', `${fmtUsd(p.unclaimedFeeUsd ?? 0)} / ${fmtUsd(p.earnedUsd ?? 0)}`,
       `左＝目前可領取的「未領」；右＝開倉至今「累計」(已領 ${fmtUsd(p.claimedFeeUsd ?? 0)} ＋ 未領 ${fmtUsd(p.unclaimedFeeUsd ?? 0)})。即使領出賣掉仍記得(鏈上累計值)${breakdown}`, 'pos-val'),
     mtr('手續費年化', fmtPct(p.realApr ?? 0) + (young ? ' ⚠️' : ''), '只含手續費：(累計手續費 ÷ 投入本金) 依持倉時間年化。' + ageNote, (p.realApr ?? 0) > 0 ? 'pos-val' : ''),
